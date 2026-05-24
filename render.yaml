@@ -11,7 +11,7 @@ services:
           name: vibeplan-db
           property: connectionString
       - key: ALLOWED_ORIGINS
-        value: https://vibeplan.netlify.app
+        value: https://vibeplans.netlify.app
 
 databases:
   - name: vibeplan-db
