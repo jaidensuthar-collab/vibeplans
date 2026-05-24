@@ -1,0 +1,1318 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VibePlan — Find the vibe. Make the plan.</title>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: { extend: {} }
+    }
+  </script>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; -webkit-font-smoothing: antialiased; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+<script type="text/babel" data-type="module">
+const { useState, useEffect } = React;
+
+// ─── Activity Database ───────────────────────────────────────────────────────
+
+const activities = [
+  {
+    id: 'sunset-snack-run', title: 'Sunset Snack Run',
+    summary: 'Grab cheap snacks and go watch the sunset somewhere nearby.',
+    vibes: ['chill'], estimatedCostMin: 5, estimatedCostMax: 15,
+    timeNeeded: '1–2 hours', distanceType: 'nearby',
+    bestFor: 'Chill friend groups', effortLevel: 'low', indoorOutdoor: 'outdoor',
+    warnings: [{ type: 'weather-risk', reason: 'Works best when the sky is clear.' }],
+    planningNotes: 'Pick a park, overlook, or open field ahead of time.',
+  },
+  {
+    id: 'random-playlist-drive', title: 'Random Playlist Drive',
+    summary: 'Set a shared playlist, pick a random direction, and just drive.',
+    vibes: ['random-adventure', 'chill'], estimatedCostMin: 5, estimatedCostMax: 15,
+    timeNeeded: '1–3 hours', distanceType: 'short-drive',
+    bestFor: 'Small groups with a driver', effortLevel: 'low', indoorOutdoor: 'both',
+    warnings: [{ type: 'needs-ride', reason: 'Requires at least one driver with a car.' }],
+    planningNotes: 'Agree on a gas split if the drive goes long.',
+  },
+  {
+    id: 'park-picnic', title: 'Park Picnic',
+    summary: 'Pack food from home and chill at a local park.',
+    vibes: ['chill', 'social'], estimatedCostMin: 0, estimatedCostMax: 10,
+    timeNeeded: '2–4 hours', distanceType: 'nearby',
+    bestFor: 'Any size group', effortLevel: 'low', indoorOutdoor: 'outdoor',
+    warnings: [{ type: 'weather-risk', reason: 'Best on a dry, mild day.' }],
+    planningNotes: 'Each person brings one food item to keep costs low.',
+  },
+  {
+    id: 'thrift-outfit-challenge', title: 'Thrift Store Outfit Challenge',
+    summary: 'Each person has $10 and 30 minutes to build the wildest or best outfit.',
+    vibes: ['creative', 'social', 'random-adventure'], estimatedCostMin: 5, estimatedCostMax: 15,
+    timeNeeded: '2–3 hours', distanceType: 'nearby',
+    bestFor: 'Creative, competitive groups', effortLevel: 'medium', indoorOutdoor: 'indoor',
+    warnings: [],
+    planningNotes: 'Find a Goodwill or local thrift store. Agree on budget cap before you go.',
+  },
+  {
+    id: 'photo-scavenger-hunt', title: 'DIY Photo Scavenger Hunt',
+    summary: 'Make a list of things to photograph around town and race to complete it.',
+    vibes: ['random-adventure', 'active', 'creative'], estimatedCostMin: 0, estimatedCostMax: 5,
+    timeNeeded: '2–3 hours', distanceType: 'nearby',
+    bestFor: 'Energetic groups', effortLevel: 'medium', indoorOutdoor: 'outdoor',
+    warnings: [{ type: 'needs-ride', reason: 'Covering more ground is easier with a car.' }],
+    planningNotes: 'Write 15–20 prompts in advance or use a random generator.',
+  },
+  {
+    id: 'coffee-card-game', title: 'Coffee Shop Card Game Night',
+    summary: 'Head to a coffee shop with a deck of cards or a travel board game.',
+    vibes: ['chill', 'social'], estimatedCostMin: 5, estimatedCostMax: 20,
+    timeNeeded: '2–3 hours', distanceType: 'nearby',
+    bestFor: 'Small groups', effortLevel: 'low', indoorOutdoor: 'indoor',
+    warnings: [],
+    planningNotes: 'Check that the coffee shop stays open late enough.',
+  },
+  {
+    id: 'mini-golf', title: 'Mini Golf',
+    summary: 'Classic, low-stakes competitive fun for any group size.',
+    vibes: ['active', 'social', 'random-adventure'], estimatedCostMin: 8, estimatedCostMax: 20,
+    timeNeeded: '1–2 hours', distanceType: 'short-drive',
+    bestFor: 'Any group', effortLevel: 'low', indoorOutdoor: 'outdoor',
+    warnings: [{ type: 'planning-needed', reason: 'Some courses require reservations on weekends.' }],
+    planningNotes: 'Look up hours and pricing before heading out.',
+  },
+  {
+    id: 'bowling', title: 'Bowling',
+    summary: 'Rent shoes, pick a lane, and see who actually has the best form.',
+    vibes: ['active', 'social'], estimatedCostMin: 15, estimatedCostMax: 30,
+    timeNeeded: '2–3 hours', distanceType: 'short-drive',
+    bestFor: 'Any group size', effortLevel: 'low', indoorOutdoor: 'indoor',
+    warnings: [{ type: 'cost-risk', reason: 'Shoe rentals and extra games add up fast.' }],
+    planningNotes: 'Ask about group pricing or cosmic bowling nights.',
+  },
+  {
+    id: 'late-night-dessert-run', title: 'Late-Night Dessert Run',
+    summary: 'Find the best ice cream, donuts, or dessert spot open late.',
+    vibes: ['chill', 'social', 'random-adventure'], estimatedCostMin: 5, estimatedCostMax: 15,
+    timeNeeded: '1–2 hours', distanceType: 'nearby',
+    bestFor: 'Any group', effortLevel: 'low', indoorOutdoor: 'both',
+    warnings: [
+      { type: 'late-night', reason: 'Best planned when everyone can stay out past 10 PM.' },
+      { type: 'needs-ride', reason: 'Easier with a driver to hop between spots.' },
+    ],
+    planningNotes: 'Look up which dessert places are open past 10 PM.',
+  },
+  {
+    id: 'lake-pool-day', title: 'Lake or Pool Day',
+    summary: 'Pack towels, snacks, and sunscreen for a full afternoon at the water.',
+    vibes: ['active', 'chill', 'social'], estimatedCostMin: 0, estimatedCostMax: 20,
+    timeNeeded: '3–6 hours', distanceType: 'short-drive',
+    bestFor: 'Larger groups', effortLevel: 'medium', indoorOutdoor: 'outdoor',
+    warnings: [
+      { type: 'weather-risk', reason: 'Avoid if storms are forecasted.' },
+      { type: 'needs-ride', reason: 'Lakes usually require a car to reach.' },
+    ],
+    planningNotes: 'Check if the lake or pool has an entry fee.',
+  },
+  {
+    id: 'outdoor-movie-night', title: 'Outdoor Movie Night',
+    summary: 'Set up a projector or drive to an outdoor cinema. Blankets required.',
+    vibes: ['chill', 'social'], estimatedCostMin: 0, estimatedCostMax: 25,
+    timeNeeded: '3–4 hours', distanceType: 'nearby',
+    bestFor: 'Any group', effortLevel: 'medium', indoorOutdoor: 'outdoor',
+    warnings: [
+      { type: 'weather-risk', reason: 'Rain or wind will ruin the setup.' },
+      { type: 'planning-needed', reason: 'Requires projector, extension cord, or finding a drive-in.' },
+    ],
+    planningNotes: 'Vote on the movie in the group chat before showing up.',
+  },
+  {
+    id: 'board-game-cafe', title: 'Board Game Cafe',
+    summary: 'Pay a flat fee to play from hundreds of board games while ordering food.',
+    vibes: ['social', 'chill', 'creative'], estimatedCostMin: 10, estimatedCostMax: 25,
+    timeNeeded: '2–4 hours', distanceType: 'short-drive',
+    bestFor: 'Any group', effortLevel: 'low', indoorOutdoor: 'indoor',
+    warnings: [{ type: 'planning-needed', reason: 'Popular spots fill up fast; call ahead.' }],
+    planningNotes: 'Some cafes charge per person per hour; check the pricing model.',
+  },
+  {
+    id: 'farmers-market-challenge', title: 'Farmers Market Challenge',
+    summary: 'Each person gets $5 to buy the most interesting snack at the market.',
+    vibes: ['random-adventure', 'creative', 'social'], estimatedCostMin: 5, estimatedCostMax: 15,
+    timeNeeded: '1–2 hours', distanceType: 'nearby',
+    bestFor: 'Small groups', effortLevel: 'low', indoorOutdoor: 'outdoor',
+    warnings: [{ type: 'planning-needed', reason: 'Markets are usually only on weekend mornings.' }],
+    planningNotes: 'Check local market hours online before going.',
+  },
+  {
+    id: 'content-creation-walk', title: 'Content Creation Walk',
+    summary: 'Walk around a cool area and make videos, reels, or a group photo dump.',
+    vibes: ['creative', 'social', 'random-adventure'], estimatedCostMin: 0, estimatedCostMax: 5,
+    timeNeeded: '1–3 hours', distanceType: 'nearby',
+    bestFor: 'Creative groups', effortLevel: 'low', indoorOutdoor: 'outdoor',
+    warnings: [],
+    planningNotes: 'Pick a neighborhood, park, or mural wall with good visuals.',
+  },
+  {
+    id: 'mall-challenge', title: 'Mall Challenge',
+    summary: 'Set a timer and a small budget for each person to find the weirdest item in the mall.',
+    vibes: ['random-adventure', 'social', 'creative'], estimatedCostMin: 0, estimatedCostMax: 20,
+    timeNeeded: '2–3 hours', distanceType: 'short-drive',
+    bestFor: 'Competitive groups', effortLevel: 'low', indoorOutdoor: 'indoor',
+    warnings: [{ type: 'cost-risk', reason: 'Easy to overspend if the challenge budget is not set clearly.' }],
+    planningNotes: 'Set a strict spending cap before entering.',
+  },
+  {
+    id: 'picnic-and-painting', title: 'Picnic and Painting',
+    summary: 'Bring a canvas and cheap paints to a park and paint what you see.',
+    vibes: ['creative', 'chill'], estimatedCostMin: 5, estimatedCostMax: 20,
+    timeNeeded: '2–4 hours', distanceType: 'nearby',
+    bestFor: 'Chill creative groups', effortLevel: 'low', indoorOutdoor: 'outdoor',
+    warnings: [{ type: 'weather-risk', reason: 'Wind and rain will ruin the canvases.' }],
+    planningNotes: 'Dollar stores often carry cheap acrylic paint sets and canvases.',
+  },
+  {
+    id: 'park-sports', title: 'Sports at a Park',
+    summary: 'Bring a frisbee, football, or volleyball and challenge each other.',
+    vibes: ['active', 'social'], estimatedCostMin: 0, estimatedCostMax: 5,
+    timeNeeded: '1–3 hours', distanceType: 'nearby',
+    bestFor: 'Active groups', effortLevel: 'medium', indoorOutdoor: 'outdoor',
+    warnings: [{ type: 'weather-risk', reason: 'Avoid playing in direct midday heat; go evening instead.' }],
+    planningNotes: 'Bring water and sunscreen.',
+  },
+  {
+    id: 'bookstore-roulette', title: 'Bookstore Roulette',
+    summary: 'Each person picks a random book for someone else to buy and read a page from.',
+    vibes: ['random-adventure', 'creative', 'chill'], estimatedCostMin: 5, estimatedCostMax: 15,
+    timeNeeded: '1–2 hours', distanceType: 'nearby',
+    bestFor: 'Small curious groups', effortLevel: 'low', indoorOutdoor: 'indoor',
+    warnings: [],
+    planningNotes: 'Used bookstores keep the cost low.',
+  },
+  {
+    id: 'ice-cream-crawl', title: 'Ice Cream Crawl',
+    summary: 'Visit 2–3 different ice cream or dessert spots and rate each one.',
+    vibes: ['social', 'random-adventure', 'chill'], estimatedCostMin: 10, estimatedCostMax: 25,
+    timeNeeded: '2–3 hours', distanceType: 'short-drive',
+    bestFor: 'Any group', effortLevel: 'low', indoorOutdoor: 'both',
+    warnings: [
+      { type: 'needs-ride', reason: 'Moving between multiple spots requires a car.' },
+      { type: 'cost-risk', reason: 'Multiple stops add up if you are not watching spend.' },
+    ],
+    planningNotes: 'Map out 2–3 spots in advance to plan the route.',
+  },
+  {
+    id: 'sunrise-breakfast', title: 'Sunrise Breakfast Challenge',
+    summary: 'Wake up before sunrise, make breakfast together, and watch the sun rise.',
+    vibes: ['random-adventure', 'chill', 'creative'], estimatedCostMin: 5, estimatedCostMax: 20,
+    timeNeeded: '2–3 hours', distanceType: 'nearby',
+    bestFor: 'Adventurous early risers', effortLevel: 'medium', indoorOutdoor: 'outdoor',
+    warnings: [
+      { type: 'late-night', reason: 'Requires waking up very early (4–5 AM in summer).' },
+      { type: 'weather-risk', reason: 'Clouds or rain will block the sunrise.' },
+    ],
+    planningNotes: 'Find a hilltop, rooftop, or open field with an eastern view.',
+  },
+  {
+    id: 'escape-room', title: 'Escape Room',
+    summary: 'Work together under pressure to solve puzzles and escape before the clock runs out.',
+    vibes: ['active', 'social', 'random-adventure'], estimatedCostMin: 20, estimatedCostMax: 35,
+    timeNeeded: '1–2 hours', distanceType: 'short-drive',
+    bestFor: 'Competitive friend groups', effortLevel: 'medium', indoorOutdoor: 'indoor',
+    warnings: [
+      { type: 'planning-needed', reason: 'Booking ahead is required — walk-ins are rarely available.' },
+      { type: 'cost-risk', reason: 'Per-person cost adds up quickly for larger groups.' },
+    ],
+    planningNotes: 'Book online at least a day in advance. Groups of 4–6 work best.',
+  },
+  {
+    id: 'karaoke-night', title: 'Karaoke Night',
+    summary: 'Belt out your favorite songs in a private room or at an open-mic karaoke bar.',
+    vibes: ['social', 'random-adventure', 'creative'], estimatedCostMin: 10, estimatedCostMax: 30,
+    timeNeeded: '2–3 hours', distanceType: 'short-drive',
+    bestFor: 'Loud, fun groups', effortLevel: 'low', indoorOutdoor: 'indoor',
+    warnings: [
+      { type: 'late-night', reason: 'Most karaoke spots peak after 9 PM.' },
+      { type: 'cost-risk', reason: 'Private room rentals charge by the hour — set a time limit.' },
+    ],
+    planningNotes: 'Private room karaoke is worth it for groups of 4+; check for weeknight specials.',
+  },
+  {
+    id: 'food-truck-hop', title: 'Food Truck Hop',
+    summary: 'Find a food truck park or spot with multiple trucks and try something from each one.',
+    vibes: ['social', 'random-adventure', 'chill'], estimatedCostMin: 10, estimatedCostMax: 25,
+    timeNeeded: '1–2 hours', distanceType: 'short-drive',
+    bestFor: 'Any group', effortLevel: 'low', indoorOutdoor: 'outdoor',
+    warnings: [
+      { type: 'planning-needed', reason: 'Food truck schedules change — check Instagram or their site first.' },
+      { type: 'weather-risk', reason: 'Outdoor food truck parks are miserable in rain.' },
+    ],
+    planningNotes: 'Look up a local food truck park or check city food truck trackers.',
+  },
+  {
+    id: 'bike-ride', title: 'Bike Ride Exploration',
+    summary: 'Grab bikes and ride a trail, greenway, or neighborhood you've never explored.',
+    vibes: ['active', 'random-adventure', 'chill'], estimatedCostMin: 0, estimatedCostMax: 15,
+    timeNeeded: '1–3 hours', distanceType: 'nearby',
+    bestFor: 'Active groups', effortLevel: 'medium', indoorOutdoor: 'outdoor',
+    warnings: [
+      { type: 'weather-risk', reason: 'Avoid riding in heat above 95°F — go early morning or evening.' },
+      { type: 'needs-ride', reason: 'Getting bikes to a trailhead may require a car or bike rack.' },
+    ],
+    planningNotes: 'Check if there are bike rentals nearby if not everyone has one.',
+  },
+  {
+    id: 'stargazing', title: 'Stargazing Night',
+    summary: 'Drive somewhere dark, lay out blankets, and watch the stars with snacks and music.',
+    vibes: ['chill', 'random-adventure', 'creative'], estimatedCostMin: 0, estimatedCostMax: 10,
+    timeNeeded: '2–3 hours', distanceType: 'short-drive',
+    bestFor: 'Chill friend groups', effortLevel: 'low', indoorOutdoor: 'outdoor',
+    warnings: [
+      { type: 'late-night', reason: 'Stars are best after 10 PM when the sky is fully dark.' },
+      { type: 'weather-risk', reason: 'Clouds completely ruin stargazing — check the forecast.' },
+      { type: 'needs-ride', reason: 'Requires driving away from city light pollution.' },
+    ],
+    planningNotes: 'Use a light pollution map to find dark spots nearby. Bring bug spray.',
+  },
+  {
+    id: 'cooking-challenge', title: 'DIY Cooking Challenge',
+    summary: 'Pick a mystery ingredient, split into teams, and cook the best dish in 30 minutes.',
+    vibes: ['creative', 'social', 'random-adventure'], estimatedCostMin: 10, estimatedCostMax: 25,
+    timeNeeded: '2–3 hours', distanceType: 'walking',
+    bestFor: 'Creative groups at someone\'s place', effortLevel: 'medium', indoorOutdoor: 'indoor',
+    warnings: [],
+    planningNotes: 'Decide on rules and a mystery ingredient at the grocery store before you start.',
+  },
+  {
+    id: 'arcade', title: 'Arcade or Barcade',
+    summary: 'Spend a few hours on classic arcade games, claw machines, and skee-ball.',
+    vibes: ['active', 'social', 'random-adventure'], estimatedCostMin: 10, estimatedCostMax: 30,
+    timeNeeded: '2–3 hours', distanceType: 'short-drive',
+    bestFor: 'Any group', effortLevel: 'low', indoorOutdoor: 'indoor',
+    warnings: [
+      { type: 'cost-risk', reason: 'Game credits go fast — set a token budget before you start.' },
+    ],
+    planningNotes: 'Look for an all-you-can-play flat rate if available.',
+  },
+  {
+    id: 'rollerskating', title: 'Roller Skating or Rollerblading',
+    summary: 'Hit a skate rink or find a smooth path outside for old-school rolling fun.',
+    vibes: ['active', 'social', 'random-adventure'], estimatedCostMin: 8, estimatedCostMax: 20,
+    timeNeeded: '2–3 hours', distanceType: 'short-drive',
+    bestFor: 'Any group', effortLevel: 'medium', indoorOutdoor: 'both',
+    warnings: [
+      { type: 'planning-needed', reason: 'Indoor rinks often have session times — check the schedule.' },
+    ],
+    planningNotes: 'Indoor rinks rent skates. For outdoor, bring your own or borrow.',
+  },
+  {
+    id: 'pickleball', title: 'Pickleball or Tennis',
+    summary: 'Most parks have free courts — grab rackets and challenge each other.',
+    vibes: ['active', 'social'], estimatedCostMin: 0, estimatedCostMax: 10,
+    timeNeeded: '1–2 hours', distanceType: 'nearby',
+    bestFor: 'Active groups of 2–4', effortLevel: 'medium', indoorOutdoor: 'outdoor',
+    warnings: [
+      { type: 'weather-risk', reason: 'Avoid playing midday in summer — courts are brutal in the heat.' },
+    ],
+    planningNotes: 'Public courts are usually free. Bring water and sunscreen.',
+  },
+  {
+    id: 'go-karts', title: 'Go-Karts',
+    summary: 'Race each other at a local go-kart track — trash talk fully encouraged.',
+    vibes: ['active', 'random-adventure', 'social'], estimatedCostMin: 15, estimatedCostMax: 40,
+    timeNeeded: '1–2 hours', distanceType: 'short-drive',
+    bestFor: 'Competitive groups', effortLevel: 'low', indoorOutdoor: 'outdoor',
+    warnings: [
+      { type: 'cost-risk', reason: 'Multiple race sessions add up — agree on how many rounds before you go.' },
+      { type: 'planning-needed', reason: 'Some tracks have age or height requirements.' },
+    ],
+    planningNotes: 'Look for combo deals that include multiple laps.',
+  },
+  {
+    id: 'night-market', title: 'Night Market or Street Fair',
+    summary: 'Wander a local night market, pop-up fair, or outdoor festival and take it all in.',
+    vibes: ['social', 'random-adventure', 'creative'], estimatedCostMin: 5, estimatedCostMax: 30,
+    timeNeeded: '2–3 hours', distanceType: 'short-drive',
+    bestFor: 'Any group', effortLevel: 'low', indoorOutdoor: 'outdoor',
+    warnings: [
+      { type: 'planning-needed', reason: 'Markets and fairs are event-based — check local listings first.' },
+      { type: 'weather-risk', reason: 'Outdoor events get cancelled or miserable in bad weather.' },
+    ],
+    planningNotes: 'Check Eventbrite, Instagram, or local Facebook groups for nearby events.',
+  },
+  {
+    id: 'tie-dye-day', title: 'Tie-Dye Day',
+    summary: 'Grab cheap white shirts and a tie-dye kit and go full arts and crafts outside.',
+    vibes: ['creative', 'social', 'chill'], estimatedCostMin: 5, estimatedCostMax: 20,
+    timeNeeded: '2–3 hours', distanceType: 'walking',
+    bestFor: 'Creative groups', effortLevel: 'low', indoorOutdoor: 'outdoor',
+    warnings: [
+      { type: 'weather-risk', reason: 'Do this outside — dye stains everything indoors.' },
+    ],
+    planningNotes: 'Tie-dye kits and white shirts are cheap at craft stores or Amazon.',
+  },
+  {
+    id: 'trivia-night', title: 'Trivia Night',
+    summary: 'Find a local bar or restaurant hosting trivia and compete as a team.',
+    vibes: ['social', 'chill', 'active'], estimatedCostMin: 5, estimatedCostMax: 20,
+    timeNeeded: '2–3 hours', distanceType: 'short-drive',
+    bestFor: 'Groups of 4–8', effortLevel: 'low', indoorOutdoor: 'indoor',
+    warnings: [
+      { type: 'planning-needed', reason: 'Trivia nights run on a fixed weekly schedule — check the day.' },
+      { type: 'late-night', reason: 'Most trivia events start at 7–9 PM.' },
+    ],
+    planningNotes: 'Look up "trivia night near me" — many restaurants host weekly free trivia.',
+  },
+  {
+    id: 'hiking', title: 'Hiking or Nature Trail',
+    summary: 'Pick a trail, pack snacks, and explore somewhere new on foot.',
+    vibes: ['active', 'random-adventure', 'chill'], estimatedCostMin: 0, estimatedCostMax: 10,
+    timeNeeded: '2–5 hours', distanceType: 'short-drive',
+    bestFor: 'Active groups', effortLevel: 'medium', indoorOutdoor: 'outdoor',
+    warnings: [
+      { type: 'weather-risk', reason: 'Avoid hiking in extreme heat — go early morning in summer.' },
+      { type: 'needs-ride', reason: 'Most trailheads require a car to reach.' },
+      { type: 'planning-needed', reason: 'Check trail conditions and bring enough water.' },
+    ],
+    planningNotes: 'AllTrails app is great for finding nearby trails by difficulty.',
+  },
+  {
+    id: 'diy-photoshoot', title: 'DIY Friend Photoshoot',
+    summary: 'Pick a cool location — mural, rooftop, field — and take styled group photos.',
+    vibes: ['creative', 'social', 'chill'], estimatedCostMin: 0, estimatedCostMax: 5,
+    timeNeeded: '1–2 hours', distanceType: 'nearby',
+    bestFor: 'Creative groups', effortLevel: 'low', indoorOutdoor: 'both',
+    warnings: [],
+    planningNotes: 'Golden hour (1 hour before sunset) gives the best lighting for free.',
+  },
+  {
+    id: 'garage-sale-hunt', title: 'Garage Sale Treasure Hunt',
+    summary: 'Set a $5 budget each, hit a few garage or estate sales, and find the weirdest item.',
+    vibes: ['random-adventure', 'creative', 'social'], estimatedCostMin: 0, estimatedCostMax: 10,
+    timeNeeded: '2–3 hours', distanceType: 'short-drive',
+    bestFor: 'Adventurous small groups', effortLevel: 'low', indoorOutdoor: 'outdoor',
+    warnings: [
+      { type: 'planning-needed', reason: 'Garage sales are mostly Saturday mornings — check listings the night before.' },
+      { type: 'needs-ride', reason: 'Hopping between sales requires a car.' },
+    ],
+    planningNotes: 'Use Facebook Marketplace or Craigslist to map out sales the evening before.',
+  },
+  {
+    id: 'night-swim', title: 'Night Swim',
+    summary: 'Sneak in an after-dark swim if someone has a pool — bring speakers and snacks.',
+    vibes: ['chill', 'social', 'random-adventure'], estimatedCostMin: 0, estimatedCostMax: 10,
+    timeNeeded: '2–3 hours', distanceType: 'walking',
+    bestFor: 'Small groups with pool access', effortLevel: 'low', indoorOutdoor: 'outdoor',
+    warnings: [
+      { type: 'late-night', reason: 'Best after dark — requires someone with pool access.' },
+      { type: 'weather-risk', reason: 'Skip if there\'s lightning or thunderstorms nearby.' },
+    ],
+    planningNotes: 'Make sure adults know if needed. Keep music reasonable for neighbors.',
+  },
+
+  // ── Urban & Exploration ──────────────────────────────────────────────────
+  {
+    id: 'urban-photography', title: 'Urban Photography Walk',
+    summary: 'Pick a part of town you never go to — murals, alleys, rooftops, weird architecture — and shoot a photo series.',
+    vibes: ['creative', 'random-adventure', 'social'], estimatedCostMin: 0, estimatedCostMax: 5,
+    timeNeeded: '1–3 hours', distanceType: 'nearby',
+    bestFor: 'Creative groups', effortLevel: 'low', indoorOutdoor: 'outdoor',
+    warnings: [],
+    planningNotes: 'Golden hour (1 hr before sunset) is the best free lighting. Scout murals or cool spots on Google Maps first.',
+  },
+  {
+    id: 'geocaching', title: 'Geocaching',
+    summary: 'Use the Geocaching app to hunt for hidden containers scattered around your city. Real-world treasure hunting.',
+    vibes: ['random-adventure', 'active', 'creative'], estimatedCostMin: 0, estimatedCostMax: 0,
+    timeNeeded: '1–3 hours', distanceType: 'nearby',
+    bestFor: 'Any group', effortLevel: 'medium', indoorOutdoor: 'outdoor',
+    warnings: [{ type: 'needs-ride', reason: 'Some geocaches are far enough to need a car.' }],
+    planningNotes: 'Download the free Geocaching app. Filter for difficulty 1–2 to start.',
+  },
+  {
+    id: 'random-coordinates', title: 'Random Coordinates Challenge',
+    summary: 'Generate random GPS coordinates within 30 minutes of you and drive there. No preview, no googling first.',
+    vibes: ['random-adventure', 'social'], estimatedCostMin: 5, estimatedCostMax: 15,
+    timeNeeded: '2–4 hours', distanceType: 'short-drive',
+    bestFor: 'Adventurous groups', effortLevel: 'low', indoorOutdoor: 'both',
+    warnings: [
+      { type: 'needs-ride', reason: 'Requires a driver and car.' },
+      { type: 'far-drive', reason: 'Coordinates could land anywhere — set a max radius first.' },
+    ],
+    planningNotes: 'Use a random GPS coordinate generator website. Set a 20–30 min drive radius.',
+  },
+  {
+    id: 'highest-point', title: 'Find the Highest Point in Your City',
+    summary: 'Research, navigate to, and conquer the highest natural or structural point you can legally access near you.',
+    vibes: ['random-adventure', 'active'], estimatedCostMin: 0, estimatedCostMax: 10,
+    timeNeeded: '2–4 hours', distanceType: 'short-drive',
+    bestFor: 'Adventurous duos or small groups', effortLevel: 'medium', indoorOutdoor: 'outdoor',
+    warnings: [
+      { type: 'needs-ride', reason: 'Likely requires a car to reach the trailhead or access point.' },
+      { type: 'planning-needed', reason: 'Check access rules — some peaks or rooftops require permission.' },
+    ],
+    planningNotes: 'Search "[your city] highest point" or use topographic maps. Parking garages and observation decks count too.',
+  },
+  {
+    id: 'street-chalk-art', title: 'Street Chalk Art Mural',
+    summary: 'Claim a section of sidewalk and create a massive collaborative chalk mural — no skill required.',
+    vibes: ['creative', 'social', 'chill'], estimatedCostMin: 3, estimatedCostMax: 8,
+    timeNeeded: '1–2 hours', distanceType: 'walking',
+    bestFor: 'Creative groups', effortLevel: 'low', indoorOutdoor: 'outdoor',
+    warnings: [{ type: 'weather-risk', reason: 'Rain wipes it out instantly — do this on a dry day.' }],
+    planningNotes: 'Big sidewalk chalk packs are cheap at dollar stores. Find a busy corner for an audience.',
+  },
+
+  // ── Outdoor / Nature ─────────────────────────────────────────────────────
+  {
+    id: 'disc-golf', title: 'Disc Golf',
+    summary: 'Most cities have free disc golf courses in parks. Grab a few frisbees and play 9–18 holes.',
+    vibes: ['active', 'social', 'chill'], estimatedCostMin: 0, estimatedCostMax: 10,
+    timeNeeded: '1–3 hours', distanceType: 'nearby',
+    bestFor: 'Any group', effortLevel: 'medium', indoorOutdoor: 'outdoor',
+    warnings: [{ type: 'weather-risk', reason: 'Best on a clear, non-windy day — wind ruins disc accuracy.' }],
+    planningNotes: 'Search "disc golf near me" — most are free. You can share discs to start.',
+  },
+  {
+    id: 'hammock-day', title: 'Hammock Day in the Park',
+    summary: 'String up hammocks between trees, put on a playlist, bring snacks, and do absolutely nothing productive.',
+    vibes: ['chill', 'social'], estimatedCostMin: 0, estimatedCostMax: 10,
+    timeNeeded: '2–4 hours', distanceType: 'nearby',
+    bestFor: 'Chill groups', effortLevel: 'low', indoorOutdoor: 'outdoor',
+    warnings: [{ type: 'weather-risk', reason: 'Pointless if it rains or is too hot. Go during golden hour.' }],
+    planningNotes: 'Basic hammocks are $15–20 online and last forever. Most parks with trees work fine.',
+  },
+  {
+    id: 'campfire-night', title: 'Backyard Campfire Night',
+    summary: 'Build a fire, make s\'mores, tell stories, and stay outside until it\'s way too late.',
+    vibes: ['chill', 'social', 'random-adventure'], estimatedCostMin: 5, estimatedCostMax: 15,
+    timeNeeded: '3–5 hours', distanceType: 'walking',
+    bestFor: 'Any size group', effortLevel: 'low', indoorOutdoor: 'outdoor',
+    warnings: [
+      { type: 'late-night', reason: 'This naturally turns into a late night — plan accordingly.' },
+      { type: 'weather-risk', reason: 'Wind and rain make fires impossible and miserable.' },
+      { type: 'planning-needed', reason: 'Need a fire-safe spot — backyard, fire pit, or permitted area.' },
+    ],
+    planningNotes: 'Grab firewood from a gas station. Marshmallows, chocolate, and graham crackers cost under $10.',
+  },
+  {
+    id: 'kayaking', title: 'Kayaking or Canoeing',
+    summary: 'Rent kayaks or canoes for an hour and explore a lake, river, or bay at your own pace.',
+    vibes: ['active', 'random-adventure', 'chill'], estimatedCostMin: 15, estimatedCostMax: 40,
+    timeNeeded: '2–4 hours', distanceType: 'short-drive',
+    bestFor: 'Active groups', effortLevel: 'medium', indoorOutdoor: 'outdoor',
+    warnings: [
+      { type: 'weather-risk', reason: 'Skip if storms are possible — lightning on water is dangerous.' },
+      { type: 'needs-ride', reason: 'Rental spots are usually at a specific waterfront location.' },
+      { type: 'planning-needed', reason: 'Check rental availability — busy summer days book up.' },
+    ],
+    planningNotes: 'Look for city or state park paddle rentals — usually cheaper than private operators.',
+  },
+  {
+    id: 'swimming-hole', title: 'Swimming Hole or Creek Adventure',
+    summary: 'Find a local swimming hole, creek, or natural pool and spend the afternoon in the water.',
+    vibes: ['active', 'random-adventure', 'chill'], estimatedCostMin: 0, estimatedCostMax: 10,
+    timeNeeded: '3–5 hours', distanceType: 'short-drive',
+    bestFor: 'Active groups', effortLevel: 'medium', indoorOutdoor: 'outdoor',
+    warnings: [
+      { type: 'needs-ride', reason: 'Swimming holes are usually outside city limits.' },
+      { type: 'weather-risk', reason: 'Check for recent rainfall — creeks flood fast after storms.' },
+      { type: 'planning-needed', reason: 'Research access and water safety before going.' },
+    ],
+    planningNotes: 'Search "[your city] swimming holes" or ask locals. Bring water shoes.',
+  },
+  {
+    id: 'paddleboarding', title: 'Stand-Up Paddleboarding',
+    summary: 'Rent SUP boards and attempt to stay on them. Falling in is half the fun.',
+    vibes: ['active', 'random-adventure', 'social'], estimatedCostMin: 20, estimatedCostMax: 40,
+    timeNeeded: '2–3 hours', distanceType: 'short-drive',
+    bestFor: 'Active groups', effortLevel: 'medium', indoorOutdoor: 'outdoor',
+    warnings: [
+      { type: 'weather-risk', reason: 'Choppy water from wind makes balancing very hard.' },
+      { type: 'needs-ride', reason: 'Board rental locations are at specific waterfronts.' },
+    ],
+    planningNotes: 'Wear sunscreen everywhere — reflection off the water is intense.',
+  },
+  {
+    id: 'overnight-camping', title: 'Overnight Car Camping',
+    summary: 'Pack sleeping bags, find a nearby campsite, stay a night, and wake up outside.',
+    vibes: ['random-adventure', 'chill', 'social'], estimatedCostMin: 10, estimatedCostMax: 30,
+    timeNeeded: '12–16 hours', distanceType: 'short-drive',
+    bestFor: 'Groups of 2–6', effortLevel: 'high', indoorOutdoor: 'outdoor',
+    warnings: [
+      { type: 'planning-needed', reason: 'Campsites need to be reserved — often weeks in advance.' },
+      { type: 'needs-ride', reason: 'Requires a car to haul gear to the campsite.' },
+      { type: 'weather-risk', reason: 'Check the forecast — sleeping in rain with no tent experience is miserable.' },
+    ],
+    planningNotes: 'ReserveAmerica or Recreation.gov for bookings. Car camping is beginner-friendly.',
+  },
+
+  // ── Games & Competition ──────────────────────────────────────────────────
+  {
+    id: 'laser-tag', title: 'Laser Tag',
+    summary: 'Run through a dark arena and hunt each other down with laser guns. No skill required, full chaos.',
+    vibes: ['active', 'social', 'random-adventure'], estimatedCostMin: 10, estimatedCostMax: 25,
+    timeNeeded: '1–2 hours', distanceType: 'short-drive',
+    bestFor: 'Any group', effortLevel: 'low', indoorOutdoor: 'indoor',
+    warnings: [{ type: 'cost-risk', reason: 'Multiple sessions add up — set a round limit before you pay.' }],
+    planningNotes: 'Most laser tag arenas offer multi-game packages. Weekday afternoons are less crowded.',
+  },
+  {
+    id: 'axe-throwing', title: 'Axe Throwing',
+    summary: 'Rent a lane, get coached for 10 minutes, then compete to see who hits the bullseye.',
+    vibes: ['active', 'random-adventure', 'social'], estimatedCostMin: 20, estimatedCostMax: 35,
+    timeNeeded: '1–2 hours', distanceType: 'short-drive',
+    bestFor: 'Competitive groups of 2–8', effortLevel: 'low', indoorOutdoor: 'indoor',
+    warnings: [
+      { type: 'planning-needed', reason: 'Most venues require a reservation, especially on weekends.' },
+      { type: 'cost-risk', reason: 'Lane rental is per-hour — groups of 4+ split the cost best.' },
+    ],
+    planningNotes: 'Closed-toe shoes required. Most venues are 18+ but some allow 16+ with a waiver.',
+  },
+  {
+    id: 'board-game-home', title: 'Board Game Night at Home',
+    summary: 'Pull out every board game in the house and play until someone flips the table.',
+    vibes: ['social', 'chill', 'creative'], estimatedCostMin: 0, estimatedCostMax: 10,
+    timeNeeded: '3–5 hours', distanceType: 'walking',
+    bestFor: 'Any group', effortLevel: 'low', indoorOutdoor: 'indoor',
+    warnings: [],
+    planningNotes: 'Catan, Ticket to Ride, Codenames, and Wavelength are all crowd favorites. Order pizza.',
+  },
+  {
+    id: 'card-tournament', title: 'Card Game Tournament',
+    summary: 'Set up brackets for Uno, Phase 10, BS, or any card game and crown a champion.',
+    vibes: ['social', 'random-adventure', 'chill'], estimatedCostMin: 0, estimatedCostMax: 5,
+    timeNeeded: '2–4 hours', distanceType: 'walking',
+    bestFor: 'Groups of 4–10', effortLevel: 'low', indoorOutdoor: 'indoor',
+    warnings: [],
+    planningNotes: 'Write the bracket on a whiteboard or paper. Loser makes snack runs.',
+  },
+  {
+    id: 'video-game-tournament', title: 'Video Game Tournament',
+    summary: 'Set up brackets on any multiplayer game and run a real tournament with rounds.',
+    vibes: ['active', 'social', 'random-adventure'], estimatedCostMin: 0, estimatedCostMax: 10,
+    timeNeeded: '3–5 hours', distanceType: 'walking',
+    bestFor: 'Any group at someone\'s house', effortLevel: 'low', indoorOutdoor: 'indoor',
+    warnings: [],
+    planningNotes: 'Mario Kart, Smash Bros, Rocket League, or FIFA work great for tournaments. Make a bracket.',
+  },
+  {
+    id: 'puzzle-race', title: 'Puzzle Race',
+    summary: 'Buy two identical puzzles, split into teams, and race to finish first.',
+    vibes: ['social', 'active', 'creative'], estimatedCostMin: 5, estimatedCostMax: 15,
+    timeNeeded: '2–4 hours', distanceType: 'walking',
+    bestFor: 'Competitive groups of 4+', effortLevel: 'low', indoorOutdoor: 'indoor',
+    warnings: [],
+    planningNotes: '500-piece puzzles are a good challenge level. Dollar stores sometimes carry them cheap.',
+  },
+  {
+    id: 'vending-machine-roulette', title: 'Vending Machine Roulette',
+    summary: 'Everyone puts in $2, presses a random button without looking, and eats whatever comes out.',
+    vibes: ['random-adventure', 'social', 'chill'], estimatedCostMin: 2, estimatedCostMax: 8,
+    timeNeeded: '30 min–1 hour', distanceType: 'nearby',
+    bestFor: 'Any group', effortLevel: 'low', indoorOutdoor: 'indoor',
+    warnings: [],
+    planningNotes: 'Best done late night when the activity just needs a quick laugh. Hospital, mall, or school lobbies work.',
+  },
+
+  // ── Creative & DIY ───────────────────────────────────────────────────────
+  {
+    id: 'pottery-class', title: 'Pottery or Ceramics Studio',
+    summary: 'Walk in for a drop-in wheel-throwing or hand-building session at a local studio.',
+    vibes: ['creative', 'chill', 'social'], estimatedCostMin: 20, estimatedCostMax: 45,
+    timeNeeded: '2–3 hours', distanceType: 'short-drive',
+    bestFor: 'Creative groups of 2–6', effortLevel: 'low', indoorOutdoor: 'indoor',
+    warnings: [{ type: 'planning-needed', reason: 'Most studios require booking drop-in sessions in advance.' }],
+    planningNotes: 'Look for "paint your own pottery" studios too — lower skill floor, same fun.',
+  },
+  {
+    id: 'candle-making', title: 'DIY Candle Making',
+    summary: 'Buy a cheap candle kit and spend an afternoon making custom-scented candles at someone\'s place.',
+    vibes: ['creative', 'chill', 'social'], estimatedCostMin: 10, estimatedCostMax: 25,
+    timeNeeded: '2–3 hours', distanceType: 'walking',
+    bestFor: 'Small creative groups', effortLevel: 'low', indoorOutdoor: 'indoor',
+    warnings: [],
+    planningNotes: 'Candle-making kits from Amazon or craft stores include everything. Work on a protected table.',
+  },
+  {
+    id: 'vision-board-party', title: 'Vision Board Party',
+    summary: 'Everyone brings magazines and makes a collage vision board for the summer or the year.',
+    vibes: ['creative', 'chill', 'social'], estimatedCostMin: 0, estimatedCostMax: 10,
+    timeNeeded: '2–3 hours', distanceType: 'walking',
+    bestFor: 'Small groups', effortLevel: 'low', indoorOutdoor: 'indoor',
+    warnings: [],
+    planningNotes: 'Grab old magazines from doctors\' offices or thrift stores. Poster boards are $1 each.',
+  },
+  {
+    id: 'film-photography', title: 'Film Camera Day',
+    summary: 'Grab a cheap disposable camera or dust off an old film camera and shoot a full roll in one day.',
+    vibes: ['creative', 'chill', 'random-adventure'], estimatedCostMin: 10, estimatedCostMax: 25,
+    timeNeeded: '2–4 hours', distanceType: 'nearby',
+    bestFor: 'Creative groups or pairs', effortLevel: 'low', indoorOutdoor: 'outdoor',
+    warnings: [],
+    planningNotes: 'Disposable cameras are $12–18 at CVS/Walgreens. One-hour developing is a vibe.',
+  },
+  {
+    id: 'friendship-bracelets', title: 'Friendship Bracelet Station',
+    summary: 'Set up strings, beads, and patterns and spend an afternoon making bracelets for each other.',
+    vibes: ['creative', 'chill', 'social'], estimatedCostMin: 5, estimatedCostMax: 15,
+    timeNeeded: '2–3 hours', distanceType: 'walking',
+    bestFor: 'Any group', effortLevel: 'low', indoorOutdoor: 'both',
+    warnings: [],
+    planningNotes: 'Embroidery floss is cheap. Look up beginner knotting patterns on YouTube before you start.',
+  },
+  {
+    id: 'short-film', title: 'Film a Short Comedy Sketch',
+    summary: 'Write a dumb 3-minute sketch, cast yourselves, film it on a phone, and edit it together.',
+    vibes: ['creative', 'social', 'random-adventure'], estimatedCostMin: 0, estimatedCostMax: 5,
+    timeNeeded: '3–5 hours', distanceType: 'walking',
+    bestFor: 'Creative groups of 3–6', effortLevel: 'high', indoorOutdoor: 'both',
+    warnings: [],
+    planningNotes: 'CapCut is free and easy for editing. Keep the script under 2 minutes or it becomes a full project.',
+  },
+  {
+    id: 'time-capsule', title: 'Summer Time Capsule',
+    summary: 'Fill a box with notes, photos, and small items from right now and hide it to open later.',
+    vibes: ['creative', 'chill', 'social'], estimatedCostMin: 0, estimatedCostMax: 10,
+    timeNeeded: '1–2 hours', distanceType: 'walking',
+    bestFor: 'Close friend groups', effortLevel: 'low', indoorOutdoor: 'both',
+    warnings: [],
+    planningNotes: 'Use a waterproof container if burying it. Set a calendar reminder to open it together.',
+  },
+
+  // ── Food & Culinary ──────────────────────────────────────────────────────
+  {
+    id: 'boba-crawl', title: 'Boba Tea Crawl',
+    summary: 'Hit every boba or bubble tea spot in your area and score each one on taste, value, and vibes.',
+    vibes: ['social', 'random-adventure', 'chill'], estimatedCostMin: 10, estimatedCostMax: 25,
+    timeNeeded: '2–3 hours', distanceType: 'short-drive',
+    bestFor: 'Any group', effortLevel: 'low', indoorOutdoor: 'both',
+    warnings: [
+      { type: 'needs-ride', reason: 'Hopping between multiple spots needs a car.' },
+      { type: 'cost-risk', reason: 'Boba drinks are $5–8 each — each stop adds up.' },
+    ],
+    planningNotes: 'Make a scorecard with categories: taste, toppings, aesthetics, price. Pick a winner at the end.',
+  },
+  {
+    id: 'late-night-diner', title: 'Late-Night Diner Run',
+    summary: 'Roll into a 24-hour diner at midnight, order weird things off the menu, stay for two hours.',
+    vibes: ['random-adventure', 'social', 'chill'], estimatedCostMin: 8, estimatedCostMax: 20,
+    timeNeeded: '1–2 hours', distanceType: 'nearby',
+    bestFor: 'Any group', effortLevel: 'low', indoorOutdoor: 'indoor',
+    warnings: [{ type: 'late-night', reason: 'This is literally a late-night activity. Plan for midnight or later.' }],
+    planningNotes: 'Google "24-hour diner near me." Order the most chaotic item on the menu.',
+  },
+  {
+    id: 'international-snack-haul', title: 'International Snack Haul',
+    summary: 'Hit an Asian grocery, international market, or H-Mart and spend $10 each on weird snacks to try.',
+    vibes: ['random-adventure', 'social', 'creative'], estimatedCostMin: 8, estimatedCostMax: 15,
+    timeNeeded: '1–2 hours', distanceType: 'short-drive',
+    bestFor: 'Any group', effortLevel: 'low', indoorOutdoor: 'indoor',
+    warnings: [],
+    planningNotes: 'Rate each snack out of 10. Japanese, Korean, and Mexican international sections have the most interesting stuff.',
+  },
+  {
+    id: 'backyard-bbq', title: 'Backyard BBQ',
+    summary: 'Fire up the grill, everyone brings one ingredient, and you spend the afternoon eating outside.',
+    vibes: ['social', 'chill'], estimatedCostMin: 5, estimatedCostMax: 20,
+    timeNeeded: '3–5 hours', distanceType: 'walking',
+    bestFor: 'Any size group', effortLevel: 'medium', indoorOutdoor: 'outdoor',
+    warnings: [
+      { type: 'weather-risk', reason: 'Wind and rain make grilling difficult and unpleasant.' },
+      { type: 'planning-needed', reason: 'Requires access to a grill and outdoor space.' },
+    ],
+    planningNotes: 'Each person brings one item — burgers, hot dogs, chips, drinks, a side. Keeps it affordable.',
+  },
+  {
+    id: 'taco-crawl', title: 'Taco Crawl',
+    summary: 'Map out 3–4 taco spots, eat one or two tacos at each, and rank them at the end.',
+    vibes: ['social', 'random-adventure', 'chill'], estimatedCostMin: 10, estimatedCostMax: 25,
+    timeNeeded: '2–3 hours', distanceType: 'short-drive',
+    bestFor: 'Any group', effortLevel: 'low', indoorOutdoor: 'both',
+    warnings: [{ type: 'needs-ride', reason: 'Multiple stops require a car.' }],
+    planningNotes: 'Research spots in advance — Yelp or Google reviews help. Food trucks often have the best tacos.',
+  },
+  {
+    id: 'cooking-show-night', title: 'Chopped-Style Cooking Night',
+    summary: 'Everyone picks one mystery ingredient from the fridge, then everyone cooks something using all the mystery items.',
+    vibes: ['creative', 'social', 'random-adventure'], estimatedCostMin: 10, estimatedCostMax: 20,
+    timeNeeded: '2–3 hours', distanceType: 'walking',
+    bestFor: 'Groups at someone\'s house with a kitchen', effortLevel: 'medium', indoorOutdoor: 'indoor',
+    warnings: [],
+    planningNotes: 'One person plays host/judge. Timer set for 30 minutes. Judging categories: taste, creativity, presentation.',
+  },
+
+  // ── Music & Performance ───────────────────────────────────────────────────
+  {
+    id: 'open-mic', title: 'Open Mic Night',
+    summary: 'Find a local coffee shop or venue hosting open mic and watch strangers (or go up yourself).',
+    vibes: ['social', 'chill', 'creative'], estimatedCostMin: 0, estimatedCostMax: 15,
+    timeNeeded: '2–3 hours', distanceType: 'nearby',
+    bestFor: 'Any group', effortLevel: 'low', indoorOutdoor: 'indoor',
+    warnings: [{ type: 'late-night', reason: 'Open mics usually run 7–10 PM at the earliest.' }],
+    planningNotes: 'If anyone has a song or poem, sign up to perform. Even watching is a great time.',
+  },
+  {
+    id: 'free-concert', title: 'Free Concert in the Park',
+    summary: 'Most cities run free outdoor concerts in summer — pack snacks, bring a blanket, show up.',
+    vibes: ['chill', 'social'], estimatedCostMin: 0, estimatedCostMax: 10,
+    timeNeeded: '2–4 hours', distanceType: 'nearby',
+    bestFor: 'Any size group', effortLevel: 'low', indoorOutdoor: 'outdoor',
+    warnings: [{ type: 'weather-risk', reason: 'Outdoor concerts get cancelled for storms.' }],
+    planningNotes: 'Search "[your city] free outdoor concerts summer 2026" or check your city\'s parks department.',
+  },
+  {
+    id: 'music-video-shoot', title: 'Music Video Shoot',
+    summary: 'Pick a song, divide roles (director, cast, camera), and film a full lip-sync music video.',
+    vibes: ['creative', 'social', 'random-adventure'], estimatedCostMin: 0, estimatedCostMax: 5,
+    timeNeeded: '3–4 hours', distanceType: 'nearby',
+    bestFor: 'Creative groups of 3–6', effortLevel: 'high', indoorOutdoor: 'both',
+    warnings: [],
+    planningNotes: 'Plan a shot list first. Pick a song under 3 minutes. CapCut or iMovie for editing.',
+  },
+  {
+    id: 'backyard-jam', title: 'Backyard Jam Session',
+    summary: 'Anyone who plays anything — guitar, drums, keys, even a tambourine — gets together and jams.',
+    vibes: ['creative', 'social', 'chill'], estimatedCostMin: 0, estimatedCostMax: 10,
+    timeNeeded: '2–4 hours', distanceType: 'walking',
+    bestFor: 'Musically inclined groups', effortLevel: 'low', indoorOutdoor: 'outdoor',
+    warnings: [{ type: 'late-night', reason: 'Outdoor music at night may upset neighbors.' }],
+    planningNotes: 'Non-musicians can clap, sing, or run a playlist between songs. Bring snacks.',
+  },
+
+  // ── Chill / Relaxed ──────────────────────────────────────────────────────
+  {
+    id: 'movie-marathon', title: 'Themed Movie Marathon',
+    summary: 'Pick a director, actor, franchise, or vibe and watch 3 movies back-to-back with themed snacks.',
+    vibes: ['chill', 'social'], estimatedCostMin: 0, estimatedCostMax: 15,
+    timeNeeded: '5–8 hours', distanceType: 'walking',
+    bestFor: 'Any group', effortLevel: 'low', indoorOutdoor: 'indoor',
+    warnings: [{ type: 'late-night', reason: '3 movies means this ends at midnight or later.' }],
+    planningNotes: 'Vote on the theme beforehand. Assign each person a snack that matches a movie.',
+  },
+  {
+    id: 'spa-day', title: 'DIY Spa Day',
+    summary: 'Face masks, nail painting, foot soaks, candles, and good music. Zero cost, all vibes.',
+    vibes: ['chill', 'social', 'creative'], estimatedCostMin: 0, estimatedCostMax: 15,
+    timeNeeded: '2–4 hours', distanceType: 'walking',
+    bestFor: 'Any group', effortLevel: 'low', indoorOutdoor: 'indoor',
+    warnings: [],
+    planningNotes: 'Sheet face masks are $1 each at Asian beauty stores or Amazon. Pick a playlist in advance.',
+  },
+  {
+    id: 'fort-building', title: 'Epic Indoor Fort Build',
+    summary: 'Claim the living room, use every blanket and pillow in the house, and build the biggest fort possible.',
+    vibes: ['creative', 'chill', 'social'], estimatedCostMin: 0, estimatedCostMax: 5,
+    timeNeeded: '2–4 hours', distanceType: 'walking',
+    bestFor: 'Any group', effortLevel: 'low', indoorOutdoor: 'indoor',
+    warnings: [],
+    planningNotes: 'Clip lights inside for ambiance. Watch a movie inside it once it\'s built.',
+  },
+  {
+    id: 'all-nighter', title: 'Planned All-Nighter',
+    summary: 'Everyone sleeps over, no one sleeps. Games, food, movies, and chaos until the sun comes up.',
+    vibes: ['random-adventure', 'social', 'chill'], estimatedCostMin: 5, estimatedCostMax: 20,
+    timeNeeded: '8–12 hours', distanceType: 'walking',
+    bestFor: 'Close friend groups of 3–8', effortLevel: 'low', indoorOutdoor: 'indoor',
+    warnings: [{ type: 'late-night', reason: 'This is the whole point. Make sure everyone\'s parents know.' }],
+    planningNotes: 'Plan activity rotations: games 10–12, movie 12–2, food run 2–3, chaos 3–sunrise.',
+  },
+
+  // ── Community & Volunteering ─────────────────────────────────────────────
+  {
+    id: 'volunteer-day', title: 'Volunteer Day',
+    summary: 'Spend a few hours at a food bank, community garden, or neighborhood cleanup as a group.',
+    vibes: ['active', 'social'], estimatedCostMin: 0, estimatedCostMax: 0,
+    timeNeeded: '3–5 hours', distanceType: 'short-drive',
+    bestFor: 'Any group', effortLevel: 'medium', indoorOutdoor: 'both',
+    warnings: [{ type: 'planning-needed', reason: 'Most volunteer orgs require signup at least a few days ahead.' }],
+    planningNotes: 'VolunteerMatch.org or your city\'s parks department list open opportunities.',
+  },
+  {
+    id: 'dog-shelter', title: 'Dog Shelter Volunteer Day',
+    summary: 'Sign up to walk, socialize, or clean at a local dog or cat shelter for a few hours.',
+    vibes: ['active', 'social', 'chill'], estimatedCostMin: 0, estimatedCostMax: 0,
+    timeNeeded: '2–4 hours', distanceType: 'short-drive',
+    bestFor: 'Any group', effortLevel: 'medium', indoorOutdoor: 'both',
+    warnings: [{ type: 'planning-needed', reason: 'Shelters require advance signup and sometimes a short orientation.' }],
+    planningNotes: 'Call or email the shelter at least a week ahead. Some require volunteers to be 16+.',
+  },
+  {
+    id: 'clothing-swap', title: 'Clothing Swap Party',
+    summary: 'Everyone brings 5–10 items they don\'t wear anymore and swaps for new-to-you pieces.',
+    vibes: ['creative', 'social', 'chill'], estimatedCostMin: 0, estimatedCostMax: 5,
+    timeNeeded: '2–3 hours', distanceType: 'walking',
+    bestFor: 'Any group', effortLevel: 'low', indoorOutdoor: 'indoor',
+    warnings: [],
+    planningNotes: 'Set a rule: everything must be clean and wearable. Leftover items go to a thrift donation.',
+  },
+
+  // ── Yes Day / Random Challenges ──────────────────────────────────────────
+  {
+    id: 'yes-day', title: 'Yes Day Challenge',
+    summary: 'For 2 hours, one person proposes activities and everyone has to say yes to the first 5 suggestions.',
+    vibes: ['random-adventure', 'social', 'active'], estimatedCostMin: 5, estimatedCostMax: 20,
+    timeNeeded: '2–4 hours', distanceType: 'nearby',
+    bestFor: 'Adventurous friend groups', effortLevel: 'medium', indoorOutdoor: 'both',
+    warnings: [
+      { type: 'cost-risk', reason: 'Suggestions could cost money — agree on a per-activity cap.' },
+    ],
+    planningNotes: 'Rotate who suggests. Nothing dangerous, illegal, or over an agreed budget.',
+  },
+  {
+    id: 'random-restaurant', title: 'Spin the Wheel Restaurant Run',
+    summary: 'List every restaurant within 15 minutes, spin a wheel to pick one randomly, and go immediately.',
+    vibes: ['random-adventure', 'social'], estimatedCostMin: 10, estimatedCostMax: 30,
+    timeNeeded: '1–2 hours', distanceType: 'nearby',
+    bestFor: 'Any group', effortLevel: 'low', indoorOutdoor: 'indoor',
+    warnings: [{ type: 'cost-risk', reason: 'Wheel could land on a pricier spot — set a max price per person.' }],
+    planningNotes: 'Use Wheelofnames.com. Add 10+ options. No vetoing the result.',
+  },
+];
+
+// ─── Mock Planner ─────────────────────────────────────────────────────────────
+
+const BUDGET_KW = { free:0, cheap:10, low:10, broke:5, '$5':5, '$10':10, '$15':15, '$20':20, '$25':25, '$30':30, '$50':50 };
+const VIBE_KW = { chill:'chill', relax:'chill', lowkey:'chill', calm:'chill', easy:'chill', random:'random-adventure', adventure:'random-adventure', spontaneous:'random-adventure', active:'active', sporty:'active', energetic:'active', creative:'creative', artsy:'creative', social:'social', hangout:'social' };
+const DIST_KW = { walking:5, nearby:10, close:10, '10 min':10, '15 min':15, '20 min':20, '25 min':25, '30 min':30 };
+
+function parsePrompt(raw) {
+  const lower = raw.toLowerCase();
+  let budget, distanceMinutes;
+  const vibes = [];
+  const dollarMatch = lower.match(/\$(\d+)/g);
+  if (dollarMatch) budget = Math.max(...dollarMatch.map(d => parseInt(d.replace('$', ''))));
+  for (const [kw, val] of Object.entries(BUDGET_KW)) { if (lower.includes(kw) && budget === undefined) budget = val; }
+  const minMatch = lower.match(/(\d+)\s*min/);
+  if (minMatch) distanceMinutes = parseInt(minMatch[1]);
+  for (const [kw, val] of Object.entries(DIST_KW)) { if (lower.includes(kw) && distanceMinutes === undefined) distanceMinutes = val; }
+  for (const [kw, vibe] of Object.entries(VIBE_KW)) { if (lower.includes(kw) && !vibes.includes(vibe)) vibes.push(vibe); }
+  const groupMatch = lower.match(/(\d+)\s*people/);
+  const groupSize = groupMatch ? parseInt(groupMatch[1]) : undefined;
+  return { budget, distanceMinutes, vibes, groupSize, rawText: raw };
+}
+
+const DIST_ORDER = { walking:5, nearby:10, 'short-drive':25, 'road-trip':60 };
+
+function rankActivities(prompt, pool = activities) {
+  const scored = pool.map(a => {
+    let score = 50;
+    // budget
+    if (prompt.budget !== undefined) { score += a.estimatedCostMax <= prompt.budget ? 20 : a.estimatedCostMin <= prompt.budget ? 5 : -20; }
+    else { score += 10; }
+    // distance
+    const am = DIST_ORDER[a.distanceType];
+    if (prompt.distanceMinutes !== undefined) { score += am <= prompt.distanceMinutes ? 15 : am <= prompt.distanceMinutes * 1.3 ? 5 : -15; }
+    else { score += 10; }
+    // vibe
+    if (prompt.vibes.length === 0) { score += 10; }
+    else { score += prompt.vibes.filter(v => a.vibes.includes(v)).length * 15; }
+    // warning penalty
+    score += a.warnings.length * -3;
+
+    const reasons = [];
+    if (prompt.budget !== undefined && a.estimatedCostMax <= prompt.budget) reasons.push(`fits your $${prompt.budget} budget`);
+    if (prompt.distanceMinutes !== undefined && am <= prompt.distanceMinutes) reasons.push('within your drive limit');
+    const mv = prompt.vibes.filter(v => a.vibes.includes(v));
+    if (mv.length > 0) reasons.push(`matches ${mv.join(', ')} vibe`);
+    if (a.effortLevel === 'low') reasons.push('easy to coordinate');
+    if (reasons.length === 0) reasons.push('solid all-around option');
+
+    return { activity: a, score, rankingReason: `Ranked because it ${reasons.join(', ')}.` };
+  });
+  return scored.sort((a, b) => b.score - a.score).slice(0, 3);
+}
+
+function rankWithConstraints(rawPrompt, constraints) {
+  const base = parsePrompt(rawPrompt);
+  const budgets = constraints.map(c => c.maxBudget).filter(b => b !== undefined);
+  const dists = constraints.map(c => c.maxDistanceMinutes).filter(d => d !== undefined);
+  return rankActivities({
+    ...base,
+    budget: budgets.length > 0 ? Math.min(...budgets, base.budget ?? Infinity) : base.budget,
+    distanceMinutes: dists.length > 0 ? Math.min(...dists, base.distanceMinutes ?? Infinity) : base.distanceMinutes,
+  });
+}
+
+function generateImprovedPlan(ranked, constraints) {
+  const { activity } = ranked;
+  const minB = constraints.map(c => c.maxBudget).filter(b => b !== undefined);
+  const budgetNote = minB.length > 0 ? `under $${Math.min(...minB)} per person` : `around $${activity.estimatedCostMax} per person`;
+  return {
+    activityTitle: activity.title,
+    polishedPlan: `Meet up and head out for ${activity.title.toLowerCase()}. Keep costs ${budgetNote} and stay within ${activity.distanceType === 'nearby' ? '15 minutes' : '25 minutes'} of your starting point. Plan for ${activity.timeNeeded} — ${activity.summary.toLowerCase()}`,
+    nearbyOptions: ['Local park or green space', 'Nearby shopping center or strip', 'Scenic outdoor spot or overlook'],
+    backupPlan: activity.indoorOutdoor === 'outdoor'
+      ? 'If weather turns bad, switch to a coffee shop, board game night, or car playlist drive instead.'
+      : 'If the main spot is full or closed, pick the next closest option on the list.',
+  };
+}
+
+// ─── Group Utilities ──────────────────────────────────────────────────────────
+
+function generateGroupCode() { return `VP-${Math.floor(1000 + Math.random() * 9000)}`; }
+function createGroup(prompt) { return { id: Math.random().toString(36).slice(2), code: generateGroupCode(), prompt, constraints: [], topActivities: [], votes: [] }; }
+function addVote(group, memberId, activityId) { return { ...group, votes: [...group.votes.filter(v => v.memberId !== memberId), { memberId, activityId }] }; }
+function getVoteCounts(group) { return group.votes.reduce((acc, v) => { acc[v.activityId] = (acc[v.activityId] ?? 0) + 1; return acc; }, {}); }
+function getWinningId(group) { const e = Object.entries(getVoteCounts(group)); return e.length ? e.sort((a,b) => b[1]-a[1])[0][0] : undefined; }
+
+// ─── Warning Badge ────────────────────────────────────────────────────────────
+
+const BADGE_COLORS = {
+  'late-night': 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
+  'needs-ride': 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
+  'cost-risk': 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
+  'weather-risk': 'bg-sky-100 text-sky-800 dark:bg-sky-900 dark:text-sky-200',
+  'far-drive': 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200',
+  'planning-needed': 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
+};
+const BADGE_LABELS = { 'late-night':'Late Night', 'needs-ride':'Needs Ride', 'cost-risk':'Cost Risk', 'weather-risk':'Weather Risk', 'far-drive':'Far Drive', 'planning-needed':'Plan Ahead' };
+
+function WarningBadge({ badge }) {
+  return (
+    <span className={`inline-flex items-center text-xs font-medium px-2 py-0.5 rounded-full ${BADGE_COLORS[badge.type]}`} title={badge.reason}>
+      {BADGE_LABELS[badge.type]}
+    </span>
+  );
+}
+
+// ─── Activity Card ────────────────────────────────────────────────────────────
+
+function ActivityCard({ ranked, rank, onVote, voted, voteCount }) {
+  const { activity, rankingReason } = ranked;
+  return (
+    <div className="rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 shadow-sm space-y-2">
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-semibold text-indigo-500 uppercase tracking-wide">#{rank}</span>
+        <span className="text-xs text-gray-400 dark:text-gray-500">{activity.effortLevel} effort</span>
+      </div>
+      <h3 className="text-lg font-bold text-gray-900 dark:text-white">{activity.title}</h3>
+      <p className="text-sm text-gray-600 dark:text-gray-300">{activity.summary}</p>
+      <div className="grid grid-cols-2 gap-1 text-xs text-gray-500 dark:text-gray-400">
+        <span>💰 ${activity.estimatedCostMin}–${activity.estimatedCostMax}/person</span>
+        <span>⏱ {activity.timeNeeded}</span>
+        <span>📍 {activity.distanceType}</span>
+        <span>🏷 {activity.bestFor}</span>
+      </div>
+      <p className="text-xs text-indigo-600 dark:text-indigo-400 italic">{rankingReason}</p>
+      {activity.warnings.length > 0 && (
+        <div className="flex flex-wrap gap-1">
+          {activity.warnings.map(w => <WarningBadge key={w.type} badge={w} />)}
+        </div>
+      )}
+      {onVote && (
+        <button
+          onClick={onVote}
+          className={`w-full mt-2 py-2 rounded-xl text-sm font-semibold transition-colors ${voted ? 'bg-indigo-600 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-100 hover:bg-indigo-50 dark:hover:bg-gray-600'}`}
+        >
+          {voted ? `Voted ✓ (${voteCount ?? 0})` : `Vote${voteCount ? ` (${voteCount})` : ''}`}
+        </button>
+      )}
+    </div>
+  );
+}
+
+// ─── Empty State ──────────────────────────────────────────────────────────────
+
+function EmptyState({ message, hint }) {
+  return (
+    <div className="text-center py-12 px-4">
+      <p className="text-2xl mb-2">🌞</p>
+      <p className="text-gray-600 dark:text-gray-300 font-medium">{message}</p>
+      {hint && <p className="text-sm text-gray-400 dark:text-gray-500 mt-1">{hint}</p>}
+    </div>
+  );
+}
+
+// ─── Mode Card ────────────────────────────────────────────────────────────────
+
+function ModeCard({ title, description, emoji, onClick }) {
+  return (
+    <button
+      onClick={onClick}
+      className="w-full text-left rounded-2xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 hover:border-indigo-400 dark:hover:border-indigo-500 hover:shadow-md transition-all group"
+    >
+      <div className="text-4xl mb-3">{emoji}</div>
+      <h2 className="text-xl font-bold text-gray-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400">{title}</h2>
+      <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{description}</p>
+    </button>
+  );
+}
+
+// ─── Header ───────────────────────────────────────────────────────────────────
+
+function Header({ dark, onToggle, onHome }) {
+  return (
+    <header className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 sticky top-0 z-10">
+      <button onClick={onHome} className="text-xl font-bold text-indigo-600 dark:text-indigo-400 tracking-tight hover:opacity-80 transition-opacity">
+        VibePlan
+      </button>
+      <button
+        onClick={onToggle}
+        aria-label="Toggle dark mode"
+        className="rounded-full p-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
+      >
+        {dark ? '☀️' : '🌙'}
+      </button>
+    </header>
+  );
+}
+
+// ─── Home Page ────────────────────────────────────────────────────────────────
+
+function HomePage({ onSelect }) {
+  return (
+    <main className="max-w-md mx-auto px-4 py-10 space-y-8">
+      <section className="text-center space-y-2">
+        <h1 className="text-4xl font-extrabold text-gray-900 dark:text-white">VibePlan</h1>
+        <p className="text-lg text-indigo-600 dark:text-indigo-400 font-medium">Find the vibe. Make the plan.</p>
+        <p className="text-sm text-gray-500 dark:text-gray-400">Get ranked summer hangout ideas for you or your friend group.</p>
+      </section>
+      <div className="space-y-4">
+        <ModeCard emoji="💬" title="Chat Mode" description="Describe what you're feeling and get ranked ideas fast. Great for quick inspiration when you're bored." onClick={() => onSelect('chat')} />
+        <ModeCard emoji="👥" title="Group Mode" description="Create a group code, gather everyone's constraints, and vote on the best plan together." onClick={() => onSelect('group')} />
+      </div>
+      <p className="text-center text-xs text-gray-400 dark:text-gray-600">No login. No drama. Just plans.</p>
+    </main>
+  );
+}
+
+// ─── Chat Mode ────────────────────────────────────────────────────────────────
+
+const CHIPS = [
+  'Bored tonight, 5 people, $15 each, within 20 minutes',
+  'Something chill with friends this afternoon',
+  'Random adventure, no idea where, cheap',
+];
+
+function ChatMode() {
+  const [input, setInput] = useState('');
+  const [results, setResults] = useState([]);
+  const [submitted, setSubmitted] = useState(false);
+  const [error, setError] = useState('');
+
+  function handleSubmit() {
+    const t = input.trim();
+    if (!t) { setError('Type something so VibePlan can rank ideas for you.'); return; }
+    if (t.length < 5) { setError('Add a little more detail. Try adding a budget, vibe, or drive limit.'); return; }
+    setError('');
+    setResults(rankActivities(parsePrompt(t)));
+    setSubmitted(true);
+  }
+
+  return (
+    <main className="max-w-md mx-auto px-4 py-6 space-y-6">
+      <div>
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Chat Mode</h2>
+        <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Tell VibePlan what you're feeling. Mention your budget, how far you'll drive, and the vibe.</p>
+      </div>
+      <div className="space-y-3">
+        <textarea
+          className="w-full rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white p-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-indigo-400 placeholder-gray-400"
+          rows={3}
+          placeholder="We're bored tonight, 5 people, $15 each, nothing more than 20 minutes away..."
+          value={input}
+          onChange={e => setInput(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSubmit(); } }}
+        />
+        {error && <p className="text-sm text-red-500">{error}</p>}
+        <div className="flex flex-wrap gap-2">
+          {CHIPS.map(c => (
+            <button key={c} onClick={() => setInput(c)}
+              className="text-xs bg-indigo-50 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 px-2.5 py-1 rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-800 transition-colors">
+              {c}
+            </button>
+          ))}
+        </div>
+        <button onClick={handleSubmit} className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl transition-colors">
+          Find Ideas
+        </button>
+      </div>
+      {submitted && results.length === 0 && <EmptyState message="No ideas matched." hint="Try adding a budget, vibe, or drive limit." />}
+      {results.length > 0 && (
+        <section className="space-y-4">
+          <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100">Top 3 Ideas</h3>
+          {results.map((r, i) => <ActivityCard key={r.activity.id} ranked={r} rank={i + 1} />)}
+          <p className="text-xs text-center text-gray-400 dark:text-gray-600 pb-4">Powered by mock AI — OpenAI integration coming in Phase 3</p>
+        </section>
+      )}
+    </main>
+  );
+}
+
+// ─── Improved Plan Card ───────────────────────────────────────────────────────
+
+function ImprovedPlanCard({ plan }) {
+  return (
+    <div className="rounded-2xl border-2 border-indigo-400 dark:border-indigo-500 bg-indigo-50 dark:bg-indigo-900/30 p-5 space-y-4">
+      <h4 className="text-lg font-bold text-indigo-700 dark:text-indigo-300">✨ Improved Plan: {plan.activityTitle}</h4>
+      <div>
+        <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Polished Plan</p>
+        <p className="text-sm text-gray-800 dark:text-gray-100 leading-relaxed">{plan.polishedPlan}</p>
+      </div>
+      <div>
+        <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Nearby Options</p>
+        <ul className="space-y-1">
+          {plan.nearbyOptions.map(o => <li key={o} className="text-sm text-gray-700 dark:text-gray-300 flex gap-1"><span className="text-indigo-400">•</span>{o}</li>)}
+        </ul>
+      </div>
+      <div>
+        <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Backup Plan</p>
+        <p className="text-sm text-gray-700 dark:text-gray-300 italic">{plan.backupPlan}</p>
+      </div>
+    </div>
+  );
+}
+
+// ─── Vote Panel ───────────────────────────────────────────────────────────────
+
+function VotePanel({ activities, voteCounts, userVote, winningId, onVote }) {
+  return (
+    <div className="space-y-4">
+      {activities.map((r, i) => (
+        <div key={r.activity.id} className={`transition-all ${winningId === r.activity.id ? 'ring-2 ring-indigo-500 rounded-2xl' : ''}`}>
+          {winningId === r.activity.id && <div className="text-center text-xs font-bold text-indigo-600 dark:text-indigo-400 mb-1">👑 Winner</div>}
+          <ActivityCard ranked={r} rank={i + 1} onVote={() => onVote(r.activity.id)} voted={userVote === r.activity.id} voteCount={voteCounts[r.activity.id] ?? 0} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── Group Mode ───────────────────────────────────────────────────────────────
+
+function GroupMode() {
+  const [step, setStep] = useState('entry');
+  const [group, setGroup] = useState(null);
+  const [prompt, setPrompt] = useState('');
+  const [promptError, setPromptError] = useState('');
+  const [myName, setMyName] = useState('');
+  const [myBudget, setMyBudget] = useState('');
+  const [myDist, setMyDist] = useState('');
+  const [improvedPlan, setImprovedPlan] = useState(null);
+  const [myId] = useState(() => Math.random().toString(36).slice(2));
+
+  function handleCreate() {
+    if (!prompt.trim()) { setPromptError('Enter a prompt for your group.'); return; }
+    setPromptError('');
+    const g = createGroup(prompt);
+    setGroup({ ...g, topActivities: rankWithConstraints(prompt, []) });
+    setStep('setup');
+  }
+
+  function handleConstraintAndVote() {
+    if (!group) return;
+    const c = { memberId: myId, name: myName || 'Me', maxBudget: myBudget ? parseInt(myBudget) : undefined, maxDistanceMinutes: myDist ? parseInt(myDist) : undefined };
+    const updated = { ...group, constraints: [...group.constraints.filter(x => x.memberId !== myId), c] };
+    setGroup({ ...updated, topActivities: rankWithConstraints(group.prompt, updated.constraints) });
+    setStep('vote');
+  }
+
+  function handleVote(activityId) {
+    if (!group) return;
+    const updated = addVote(group, myId, activityId);
+    setGroup({ ...updated, winningActivityId: getWinningId(updated) });
+  }
+
+  function handleImprove() {
+    if (!group?.winningActivityId) return;
+    const winner = group.topActivities.find(r => r.activity.id === group.winningActivityId);
+    if (!winner) return;
+    setImprovedPlan(generateImprovedPlan(winner, group.constraints));
+    setStep('improved');
+  }
+
+  function handleReset() { setStep('entry'); setGroup(null); setPrompt(''); setPromptError(''); setMyName(''); setMyBudget(''); setMyDist(''); setImprovedPlan(null); }
+
+  const voteCounts = group ? getVoteCounts(group) : {};
+
+  return (
+    <main className="max-w-md mx-auto px-4 py-6 space-y-6">
+      <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Group Mode</h2>
+
+      {step === 'entry' && (
+        <div className="space-y-4">
+          <p className="text-sm text-gray-500 dark:text-gray-400">Create a group, get a shareable code, and vote on the best plan together.</p>
+          <textarea
+            className="w-full rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white p-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-indigo-400 placeholder-gray-400"
+            rows={2} placeholder="5 people, bored tonight, random adventure, $20 each, within 25 minutes..."
+            value={prompt} onChange={e => setPrompt(e.target.value)}
+          />
+          {promptError && <p className="text-sm text-red-500">{promptError}</p>}
+          <button onClick={handleCreate} className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl transition-colors">Create Group</button>
+        </div>
+      )}
+
+      {step === 'setup' && group && (
+        <div className="space-y-4">
+          <div className="rounded-xl bg-indigo-50 dark:bg-indigo-900/30 p-4 text-center border border-indigo-200 dark:border-indigo-700">
+            <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Share this code with your group</p>
+            <p className="text-3xl font-extrabold text-indigo-600 dark:text-indigo-400 tracking-widest">{group.code}</p>
+            <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Demo only — local session</p>
+          </div>
+          <p className="text-sm font-medium text-gray-700 dark:text-gray-200">Add your constraints (optional)</p>
+          {[['Your name', myName, setMyName, 'text'], ['Max budget per person ($)', myBudget, setMyBudget, 'number'], ['Max drive time (minutes)', myDist, setMyDist, 'number']].map(([ph, val, set, type]) => (
+            <input key={ph} placeholder={ph} type={type} value={val} onChange={e => set(e.target.value)}
+              className="w-full rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400 placeholder-gray-400" />
+          ))}
+          <button onClick={handleConstraintAndVote} className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl transition-colors">See Top Ideas &amp; Vote</button>
+        </div>
+      )}
+
+      {step === 'vote' && group && (
+        <div className="space-y-4">
+          <p className="text-sm text-gray-500 dark:text-gray-400">Vote for the plan you like best. The winner will be highlighted.</p>
+          {group.topActivities.length === 0
+            ? <EmptyState message="No ideas matched those constraints." hint="Try loosening the budget or distance limit." />
+            : <VotePanel activities={group.topActivities} voteCounts={voteCounts} userVote={group.votes.find(v => v.memberId === myId)?.activityId} winningId={group.winningActivityId} onVote={handleVote} />}
+          {group.winningActivityId && (
+            <button onClick={handleImprove} className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl transition-colors">✨ Improve Winning Plan</button>
+          )}
+          <button onClick={handleReset} className="w-full py-2 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-xl text-sm hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">Start Over</button>
+        </div>
+      )}
+
+      {step === 'improved' && improvedPlan && (
+        <div className="space-y-4">
+          <ImprovedPlanCard plan={improvedPlan} />
+          <button onClick={handleReset} className="w-full py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 rounded-xl text-sm hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">Start Over</button>
+        </div>
+      )}
+    </main>
+  );
+}
+
+// ─── App Root ─────────────────────────────────────────────────────────────────
+
+function App() {
+  const [dark, setDark] = useState(() => window.matchMedia('(prefers-color-scheme: dark)').matches);
+  const [page, setPage] = useState('home');
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', dark);
+  }, [dark]);
+
+  return (
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-200">
+      <Header dark={dark} onToggle={() => setDark(d => !d)} onHome={() => setPage('home')} />
+      {page === 'home' && <HomePage onSelect={setPage} />}
+      {page === 'chat' && <ChatMode />}
+      {page === 'group' && <GroupMode />}
+    </div>
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<App />);
+</script>
+</body>
+</html>
