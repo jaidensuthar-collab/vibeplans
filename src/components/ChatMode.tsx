@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { api } from '../lib/api';
 import { RankedActivity } from '../lib/types';
+import { parsePrompt, rankActivities } from '../lib/mockPlanner';
 import { ActivityCard } from './ActivityCard';
 import { EmptyState } from './EmptyState';
 
@@ -15,29 +15,21 @@ export function ChatMode() {
   const [results, setResults] = useState<RankedActivity[]>([]);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
 
-  async function handleSubmit() {
+  function handleSubmit() {
     const trimmed = input.trim();
     if (!trimmed) {
       setError('Type something so VibePlan can rank ideas for you.');
       return;
     }
     if (trimmed.length < 5) {
-      setError('Add a little more detail so VibePlan can rank better ideas. Try adding a budget, vibe, or drive limit.');
+      setError('Add a little more detail — try mentioning a budget, vibe, or how far you\'ll drive.');
       return;
     }
     setError('');
-    setLoading(true);
-    try {
-      const ranked = await api.rankPrompt(trimmed);
-      setResults(ranked);
-      setSubmitted(true);
-    } catch (e) {
-      setError('Could not reach the server. Make sure the backend is running.');
-    } finally {
-      setLoading(false);
-    }
+    const ranked = rankActivities(parsePrompt(trimmed));
+    setResults(ranked);
+    setSubmitted(true);
   }
 
   return (
@@ -77,10 +69,9 @@ export function ChatMode() {
         </div>
         <button
           onClick={handleSubmit}
-          disabled={loading}
-          className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-semibold rounded-xl transition-colors disabled:opacity-50 disabled:pointer-events-none"
+          className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-semibold rounded-xl transition-colors"
         >
-          {loading ? 'Finding ideas…' : 'Find Ideas'}
+          Find Ideas
         </button>
       </div>
 
