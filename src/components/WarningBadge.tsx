@@ -10,12 +10,12 @@ const COLORS: Record<string, string> = {
 };
 
 const LABELS: Record<string, string> = {
-  'late-night': 'Late Night',
-  'needs-ride': 'Needs Ride',
-  'cost-risk': 'Cost Risk',
-  'weather-risk': 'Weather Risk',
-  'far-drive': 'Far Drive',
-  'planning-needed': 'Plan Ahead',
+  'late-night':      '🌙 Late Night',
+  'needs-ride':      '🚗 Needs Ride',
+  'cost-risk':       '💸 Cost Risk',
+  'weather-risk':    '🌧 Weather Risk',
+  'far-drive':       '🛣 Far Drive',
+  'planning-needed': '📅 Plan Ahead',
 };
 
 export function WarningBadge({ badge }: { badge: WB }) {

@@ -8,7 +8,7 @@
 ## Project Location
 
 ```
-/Users/Jaiden/.cursor/Summer Planning Site/vibeplan/
+/Users/Jaiden/Projects/Summer Planning Site/vibeplan/
 ```
 
 ---
@@ -17,7 +17,7 @@
 
 ### Backend (FastAPI)
 ```bash
-cd "/Users/Jaiden/.cursor/Summer Planning Site/vibeplan"
+cd "/Users/Jaiden/Projects/Summer Planning Site/vibeplan"
 export PATH="$PATH:/Users/Jaiden/Library/Python/3.14/bin"
 PIP_NO_PROXY="*" pip3 install -r backend/requirements.txt   # first time only
 uvicorn backend.main:app --reload --port 8000
@@ -25,7 +25,7 @@ uvicorn backend.main:app --reload --port 8000
 
 ### Frontend (Vite + React)
 ```bash
-cd "/Users/Jaiden/.cursor/Summer Planning Site/vibeplan"
+cd "/Users/Jaiden/Projects/Summer Planning Site/vibeplan"
 export PATH="/Users/Jaiden/cursor-mcp-runtime/node-v22.14.0-darwin-x64/bin:$PATH"
 unset HTTP_PROXY HTTPS_PROXY http_proxy https_proxy ALL_PROXY
 npm install   # first time only
@@ -34,7 +34,7 @@ npm run dev   # runs at http://localhost:5173
 
 ### Standalone (no install needed)
 ```bash
-open "/Users/Jaiden/.cursor/Summer Planning Site/vibeplan/vibeplan-standalone.html"
+open "/Users/Jaiden/Projects/Summer Planning Site/vibeplan/vibeplan-standalone.html"
 ```
 
 ### Network note
@@ -187,7 +187,7 @@ votes        (id INT PK, group_code FK, member_id TEXT, activity_id TEXT)
 
 ```bash
 # Pure function tests (no server, instant)
-cd "/Users/Jaiden/.cursor/Summer Planning Site/vibeplan"
+cd "/Users/Jaiden/Projects/Summer Planning Site/vibeplan"
 python3 tests/test_functions.py
 
 # HTTP integration tests (no live server needed — uses TestClient)
@@ -211,7 +211,7 @@ npm run test
 
 **Phase 1 complete and tested:**
 - [x] Standalone HTML works (open vibeplan-standalone.html in browser, no install)
-- [x] All 75 activities in both frontend and backend
+- [x] 194 activities in frontend (activities.ts) — backend/activities.py needs sync to match
 - [x] FastAPI backend running (must `cd vibeplan/` before uvicorn)
 - [x] Structured logging in every backend function → `logs/vibeplan.log`
 - [x] Frontend updated to call API (ChatMode, GroupMode use api.ts)
@@ -241,10 +241,14 @@ npm run test
 
 ---
 
-## Activity Categories (75 total)
+## Activity Categories (194 total)
 
 Original 20: Sunset Snack Run, Random Playlist Drive, Park Picnic, Thrift Outfit Challenge, DIY Photo Hunt, Coffee Card Game, Mini Golf, Bowling, Late-Night Dessert, Lake/Pool Day, Outdoor Movie Night, Board Game Cafe, Farmers Market, Content Creation Walk, Mall Challenge, Picnic+Painting, Park Sports, Bookstore Roulette, Ice Cream Crawl, Sunrise Breakfast
 
-Added batch 2 (17): Escape Room, Karaoke Night, Food Truck Hop, Bike Ride, Stargazing, DIY Cooking Challenge, Arcade, Roller Skating, Pickleball/Tennis, Go-Karts, Night Market, Tie-Dye Day, Trivia Night, Hiking, DIY Photoshoot, Garage Sale Hunt, Night Swim
+Batch 2 — generic (17): Escape Room, Karaoke Night, Food Truck Hop, Bike Ride, Stargazing, DIY Cooking Challenge, Arcade, Roller Skating, Pickleball/Tennis, Go-Karts, Night Market, Tie-Dye Day, Trivia Night, Hiking, DIY Photoshoot, Garage Sale Hunt, Night Swim
 
-Added batch 3 (38): Urban Photography, Geocaching, Random Coordinates, Highest Point, Street Chalk Art, Disc Golf, Hammock Day, Campfire Night, Kayaking, Swimming Hole, Paddleboarding, Overnight Camping, Laser Tag, Axe Throwing, Board Game Home, Card Tournament, Video Game Tournament, Puzzle Race, Vending Machine Roulette, Pottery Class, Candle Making, Vision Board Party, Film Camera Day, Friendship Bracelets, Short Film, Time Capsule, Boba Crawl, Late-Night Diner, International Snack Haul, Backyard BBQ, Taco Crawl, Chopped Cooking Night, Open Mic, Free Concert, Music Video Shoot, Backyard Jam, Movie Marathon, DIY Spa Day, Fort Building, All-Nighter, Volunteer Day, Dog Shelter, Clothing Swap, Yes Day, Spin the Wheel Restaurant
+Austin-specific — Thrills, Water, Venues, Nature, Culture, Food (87): Lake Travis Zipline, Waterloo Adventures, iFLY Indoor Skydiving, Devil\'s Waterhole Cliff Jump, Pace Bend Cliffs, Barton Creek Rock Climbing, Austin Bouldering Project, Rage Room, K1 Speed Karting, Zip Lost Pines, San Marcos River Float, Comal River Float, Barton Springs Pool, Lady Bird Lake Kayak, Bull Creek Swimming, Hamilton Pool, Deep Eddy Pool, Guadalupe River Tubing, Pinballz Arcade, Axe Escape Austin, Topgolf Austin, The Escape Game Austin, Peter Pan Mini Golf, Main Event, Alamo Drafthouse, Sandbox VR, Round1 Bowling, Blazer Tag, Enchanted Rock Hike, McKinney Falls, Natural Bridge Caverns, Inner Space Cavern, Pedernales Falls, Lockhart BBQ, Schlitterbahn, Wimberley Blue Hole, Gruene Hall, Mount Bonnell, Barton Creek Greenbelt, Congress Bridge Bats, Walnut Creek MTB, Pfluger Bridge, Shoal Creek Trail, Zilker Park Day, Stubb\'s Amphitheater, Continental Club, 6th Street Night Out, East 6th Food Crawl, Red River Cultural District, UT Tower Observation Deck, SoCo Vintage Crawl, Austin Graffiti Park, Texas Capitol Explore, Austin Ghost Tour, Blanton Museum, Austin FC Game, Texas Longhorns Game, Austin Paintball, Indoor Archery, Beach Volleyball Fiesta Gardens, Skateboarding Austin, Midnight Swim Barton Springs, Night Cycling Lady Bird, Slacklining Pease Park, Sunrise Barton Creek, Parkour Downtown, Night Fishing Lake Travis, Hammock Camping McKinney, Franklin Barbecue, Austin Taco Crawl, Late Night Kerbey Lane, Whole Foods Flagship, East Austin Food Halls, Amy\'s Ice Creams Crawl, Haunted House, Cap City Comedy, ColdTowne Improv, Trampoline Park, Outdoor Movie Austin, Austin Urban Hike, Hill Country Winery, The Veloway, Lone Star Riverboat, Barton Creek Night Hike, Austin Trivia Bar Tour, Inner Space Wild Cave Tour, SUP Yoga Lady Bird
+
+Generic batch 3 (70): Disc Golf, Hammock Day, Campfire Night, Kayaking, Paddleboarding, Overnight Camping, Laser Tag, Axe Throwing, Board Game Home Night, Card Tournament, Video Game Tournament, Puzzle Race, Vending Machine Roulette, Pottery Class, Candle Making, Vision Board Party, Film Camera Day, Friendship Bracelets, Short Film Project, Time Capsule, Boba Crawl, Late-Night Diner Run, International Snack Haul, Backyard BBQ, Chopped Cooking Night, Open Mic Night, Free Concert, Music Video Shoot, Backyard Jam Session, Movie Marathon, DIY Spa Day, Blanket Fort Night, All-Nighter, Volunteer Day, Dog Shelter Visit, Clothing Swap, Yes Day, Spin the Wheel Restaurant, Geocaching, Murder Mystery Night, Record Store Dig, Night Sky Photography, Spikeball Tournament, Random Road Trip, Thrift Style-Each-Other, Swimming Hole Hunt, Cooking Class, Rooftop Bar Hop
+
+Austin-specific batch 2 (17): Cathedral of Junk, East Austin Mural Tour, Bullock Museum + IMAX, Garner State Park, Lost Maples Fall Hike, Fossil Rim Wildlife Safari, San Antonio Riverwalk Day Trip, Fredericksburg Main Street, Wimberley Square Wander, Mueller Lake Park, South Lamar Food Trucks, Onion Creek Greenbelt, Lake Austin Boat Rental, UMLAUF Sculpture Garden, Rainey Street Patio Crawl, Longhorn Cavern State Park, Inks Lake Day Trip, Big Bend Road Trip, Volente Beach Waterpark, Austin Steam Train, Republic Square Farmers Market, Bat Watch + Dinner
