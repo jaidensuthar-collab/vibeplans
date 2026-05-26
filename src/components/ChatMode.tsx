@@ -84,7 +84,7 @@ export function ChatMode() {
 
       {results.length > 0 && (
         <section className="space-y-4">
-          <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100">Top 3 Ideas</h3>
+          <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100">Top Ideas</h3>
           {results.map((r, i) => (
             <ActivityCard key={r.activity.id} ranked={r} rank={i + 1} />
           ))}

@@ -1,23 +1,136 @@
 import { activities } from '../data/activities';
 import { Activity, ParsedPrompt, RankedActivity, Vibe, GroupConstraint, ImprovedPlan } from './types';
 
+// ─────────────────────────── keyword maps ────────────────────────────────────
+
 const BUDGET_KEYWORDS: Record<string, number> = {
-  free: 0, cheap: 10, low: 10, broke: 5, '$5': 5, '$10': 10,
-  '$15': 15, '$20': 20, '$25': 25, '$30': 30, '$50': 50,
+  // Zero / free
+  free: 0, 'no money': 0, 'no cash': 0, 'no cost': 0, 'dont have money': 0, "don't have money": 0,
+  broke: 3, 'no budget': 3, pennies: 3, 'dirt cheap': 3,
+  // Cheap
+  cheap: 10, 'low budget': 10, 'on a budget': 10, 'budget friendly': 12,
+  tight: 10, 'not much': 10, 'a little': 10, 'not a lot': 10, 'very little': 8,
+  affordable: 15, reasonable: 20, 'not expensive': 15,
+  // Dollar amounts (also parsed by regex in parsePrompt)
+  '$5': 5, '$10': 10, '$15': 15, '$20': 20, '$25': 25,
+  '$30': 30, '$40': 40, '$50': 50, '$75': 75, '$100': 100,
+  // Higher spend
+  splurge: 75, fancy: 60, expensive: 60, 'going all out': 100, 'no limit': 999,
 };
 
 const VIBE_KEYWORDS: Record<string, Vibe> = {
-  chill: 'chill', relax: 'chill', lowkey: 'chill', calm: 'chill', easy: 'chill',
-  random: 'random-adventure', adventure: 'random-adventure', spontaneous: 'random-adventure',
+  // ── Chill ──
+  chill: 'chill', relax: 'chill', relaxed: 'chill', relaxing: 'chill',
+  lowkey: 'chill', 'low key': 'chill', 'low-key': 'chill', calm: 'chill',
+  easy: 'chill', lazy: 'chill', mellow: 'chill', slow: 'chill',
+  vibe: 'chill', tired: 'chill', lounge: 'chill', cozy: 'chill', quiet: 'chill',
+  'no effort': 'chill', 'low effort': 'chill', 'take it easy': 'chill',
+  comfy: 'chill', comfortable: 'chill', restful: 'chill', kick: 'chill',
+
+  // ── Random Adventure ──
+  random: 'random-adventure', adventure: 'random-adventure', adventurous: 'random-adventure',
+  spontaneous: 'random-adventure', explore: 'random-adventure', exploring: 'random-adventure',
+  wild: 'random-adventure', surprise: 'random-adventure', yolo: 'random-adventure',
+  bored: 'random-adventure', boring: 'random-adventure', anything: 'random-adventure',
+  'no idea': 'random-adventure', 'not sure': 'random-adventure', 'dont know': 'random-adventure',
+  "don't know": 'random-adventure', exciting: 'random-adventure', 'mix it up': 'random-adventure',
+  thrill: 'random-adventure', unexpected: 'random-adventure', unusual: 'random-adventure',
+  spontaneously: 'random-adventure', discover: 'random-adventure',
+
+  // ── Active ──
   active: 'active', sporty: 'active', energetic: 'active',
-  creative: 'creative', artsy: 'creative',
-  social: 'social', hangout: 'social',
+  outdoors: 'active', outdoor: 'active', outside: 'active',
+  exercise: 'active', workout: 'active', sports: 'active', physical: 'active',
+  run: 'active', running: 'active', hike: 'active', hiking: 'active',
+  bike: 'active', biking: 'active', swim: 'active', swimming: 'active',
+  nature: 'active', 'go outside': 'active', athletic: 'active',
+  fitness: 'active', sweat: 'active', moving: 'active',
+
+  // ── Creative ──
+  creative: 'creative', artsy: 'creative', art: 'creative', craft: 'creative',
+  crafts: 'creative', paint: 'creative', painting: 'creative', draw: 'creative',
+  drawing: 'creative', music: 'creative', cook: 'creative', cooking: 'creative',
+  bake: 'creative', baking: 'creative', diy: 'creative', create: 'creative',
+  pottery: 'creative', sculpt: 'creative', handmade: 'creative',
+
+  // ── Social ──
+  social: 'social', hangout: 'social', 'hang out': 'social', 'hanging out': 'social',
+  friends: 'social', friend: 'social', fun: 'social', party: 'social',
+  people: 'social', together: 'social', squad: 'social', crew: 'social',
+  gang: 'social', everyone: 'social', games: 'social', game: 'social',
+  night: 'social', evening: 'social', laugh: 'social', laughing: 'social',
+  funny: 'social', hang: 'social', bonding: 'social', meetup: 'social',
+  'meet up': 'social', group: 'social',
 };
 
 const DISTANCE_KEYWORDS: Record<string, number> = {
-  walking: 5, nearby: 10, close: 10, '10 min': 10, '15 min': 15,
-  '20 min': 20, '25 min': 25, '30 min': 30,
+  // Very close
+  'walking distance': 5, 'on foot': 5, walkable: 5,
+  walking: 5, nearby: 10, close: 10, near: 10, local: 15, 'down the street': 5,
+  // Specific time phrases
+  '5 min': 5, '10 min': 10, '15 min': 15, '20 min': 20,
+  '25 min': 25, '30 min': 30, '45 min': 45, '1 hour': 60,
+  // Descriptive phrases
+  'not far': 15, 'not too far': 20, 'not that far': 20,
+  'within austin': 25, 'in austin': 25, 'around here': 20, 'around town': 20,
+  // Far / open
+  far: 60, anywhere: 999, 'road trip': 120, roadtrip: 120,
+  'long drive': 90, 'willing to drive': 60, 'far away': 60,
 };
+
+// ─────────── direct activity keyword boosts ──────────────────────────────────
+// If the user's prompt contains any entry in `words`, activities whose
+// title/id contains any entry in `fragments` get a score bonus of `weight`.
+const ACTIVITY_KEYWORDS: Array<{ words: string[]; fragments: string[]; weight: number }> = [
+  { words: ['bowling'], fragments: ['bowling'], weight: 55 },
+  { words: ['escape room', 'escape'], fragments: ['escape-room', 'escape room'], weight: 55 },
+  { words: ['movie', 'movies', 'film', 'cinema', 'theater', 'theatre'], fragments: ['movie', 'drive-in', 'film', 'theater', 'cinema'], weight: 50 },
+  { words: ['hike', 'hiking', 'trail', 'trails'], fragments: ['hike', 'hiking', 'trail', 'greenbelt', 'barton creek'], weight: 50 },
+  { words: ['food', 'eat', 'dinner', 'lunch', 'hungry', 'restaurant'], fragments: ['food', 'taco', 'pizza', 'bbq', 'burger', 'ramen', 'sushi', 'dining', 'eat'], weight: 40 },
+  { words: ['bar', 'bars', 'drinks', 'drinking', 'drink', 'brewery'], fragments: ['bar', 'brewery', 'drink', 'rooftop', 'sixth-street', 'sixth street'], weight: 50 },
+  { words: ['coffee', 'cafe', 'coffeehouse', 'coffeeshop'], fragments: ['coffee', 'cafe', 'coffeehouse'], weight: 55 },
+  { words: ['pool', 'swim', 'swimming', 'lake', 'barton', 'springs'], fragments: ['pool', 'lake', 'swim', 'barton', 'spring', 'river'], weight: 50 },
+  { words: ['golf', 'mini golf', 'miniature golf', 'putt', 'topgolf'], fragments: ['golf', 'topgolf'], weight: 55 },
+  { words: ['karaoke'], fragments: ['karaoke'], weight: 60 },
+  { words: ['arcade', 'arcades', 'gaming', 'video games'], fragments: ['arcade', 'gaming'], weight: 50 },
+  { words: ['board game', 'board games', 'card game'], fragments: ['board-game', 'board game', 'card game'], weight: 55 },
+  { words: ['trivia', 'quiz night', 'pub quiz'], fragments: ['trivia', 'quiz'], weight: 60 },
+  { words: ['paint', 'painting', 'paint night', 'pottery'], fragments: ['paint', 'pottery', 'ceramics'], weight: 52 },
+  { words: ['park', 'parks', 'greenspace', 'green space'], fragments: ['park', 'trail', 'greenway', 'green'], weight: 35 },
+  { words: ['music', 'concert', 'live music', 'show', 'band'], fragments: ['music', 'concert', 'live', 'sixth-street', 'venue'], weight: 45 },
+  { words: ['comedy', 'standup', 'stand-up', 'stand up', 'comedian'], fragments: ['comedy', 'stand-up', 'standup'], weight: 55 },
+  { words: ['climbing', 'rock climbing', 'bouldering'], fragments: ['climbing', 'boulder', 'rock-climb'], weight: 60 },
+  { words: ['laser tag', 'laser'], fragments: ['laser-tag', 'laser tag'], weight: 55 },
+  { words: ['go kart', 'go-kart', 'gokart', 'kart', 'karting', 'racing'], fragments: ['go-kart', 'kart', 'racing', 'speedway'], weight: 58 },
+  { words: ['trampoline', 'bounce house', 'skyzone', 'sky zone'], fragments: ['trampoline', 'bounce', 'jump'], weight: 58 },
+  { words: ['axe throwing', 'axe', 'hatchet'], fragments: ['axe', 'hatchet', 'throwing'], weight: 58 },
+  { words: ['pottery', 'ceramics', 'clay'], fragments: ['pottery', 'ceramic', 'clay'], weight: 60 },
+  { words: ['cooking class', 'cook class'], fragments: ['cooking-class', 'cooking class'], weight: 50 },
+  { words: ['picnic'], fragments: ['picnic'], weight: 55 },
+  { words: ['camping', 'camp', 'campfire', 'smores', "s'mores"], fragments: ['camp', 'campfire', 'smores'], weight: 55 },
+  { words: ['kayak', 'kayaking', 'canoe', 'canoeing', 'paddleboard', 'paddle'], fragments: ['kayak', 'paddle', 'canoe'], weight: 55 },
+  { words: ['disc golf', 'frisbee golf', 'frisbee disc'], fragments: ['disc-golf', 'disc golf'], weight: 60 },
+  { words: ['scavenger hunt', 'geocaching', 'geocache'], fragments: ['scavenger', 'geocach'], weight: 55 },
+  { words: ['spa', 'massage', 'facial', 'self care'], fragments: ['spa', 'massage', 'float'], weight: 55 },
+  { words: ['museum', 'gallery', 'exhibit', 'art museum'], fragments: ['museum', 'gallery', 'exhibit'], weight: 55 },
+  { words: ['thrift', 'thrifting', 'vintage', 'antique', 'secondhand', 'shopping'], fragments: ['thrift', 'vintage', 'antique', 'market'], weight: 48 },
+  { words: ['murder mystery', 'mystery dinner'], fragments: ['murder-mystery', 'murder mystery'], weight: 60 },
+  { words: ['hammock', 'hammocking'], fragments: ['hammock'], weight: 55 },
+  { words: ['skate', 'skateboard', 'skating', 'skatepark'], fragments: ['skate'], weight: 55 },
+  { words: ['football', 'soccer', 'basketball', 'volleyball', 'pickup game'], fragments: ['football', 'soccer', 'basketball', 'volleyball', 'pickup'], weight: 50 },
+  { words: ['stargazing', 'stars', 'star gazing', 'night sky'], fragments: ['star', 'astro', 'observatory'], weight: 55 },
+  { words: ['photography', 'photoshoot', 'photo walk'], fragments: ['photo', 'photography'], weight: 50 },
+  { words: ['boat', 'sailing', 'lake austin', 'lake travis'], fragments: ['boat', 'sail', 'cruise', 'lake-travis', 'lake-austin'], weight: 55 },
+  { words: ['zipline', 'zip line', 'zip lining'], fragments: ['zipline', 'zip-line'], weight: 58 },
+  { words: ['midnight run', 'late night', 'night drive'], fragments: ['midnight', 'late-night', 'night-drive'], weight: 45 },
+  { words: ['sunrise', 'dawn', 'morning hike'], fragments: ['sunrise', 'morning', 'dawn'], weight: 45 },
+  { words: ['road trip', 'long drive', 'drive somewhere'], fragments: ['road-trip', 'big-bend', 'hill-country'], weight: 48 },
+  { words: ['hammock', 'relax outside', 'lay outside'], fragments: ['hammock-day'], weight: 55 },
+  { words: ['frisbee', 'throw disc'], fragments: ['disc-golf', 'frisbee'], weight: 48 },
+  { words: ['putt putt', 'mini golf', 'miniature golf'], fragments: ['mini-golf', 'putt'], weight: 58 },
+];
+
+// ─────────────────────────── parsePrompt ─────────────────────────────────────
 
 export function parsePrompt(raw: string): ParsedPrompt {
   const lower = raw.toLowerCase();
@@ -25,78 +138,127 @@ export function parsePrompt(raw: string): ParsedPrompt {
   let distanceMinutes: number | undefined;
   const vibes: Vibe[] = [];
 
+  // Dollar amount regex: "$20", "$15 each", "15 dollars", "15 bucks"
   const dollarMatch = lower.match(/\$(\d+)/g);
-  if (dollarMatch) budget = Math.max(...dollarMatch.map(d => parseInt(d.replace('$', ''))));
-
-  for (const [kw, val] of Object.entries(BUDGET_KEYWORDS)) {
-    if (lower.includes(kw) && budget === undefined) budget = val;
+  if (dollarMatch) {
+    budget = Math.max(...dollarMatch.map(d => parseInt(d.replace('$', ''))));
+  }
+  // "20 dollars" / "20 bucks" / "20 each" (without $)
+  if (budget === undefined) {
+    const buckMatch = lower.match(/(\d+)\s*(?:dollars?|bucks?|each)/);
+    if (buckMatch) budget = parseInt(buckMatch[1]);
+  }
+  // Budget keywords (multi-word first, then single)
+  for (const [kw, val] of Object.entries(BUDGET_KEYWORDS).sort((a, b) => b[0].length - a[0].length)) {
+    if (budget === undefined && lower.includes(kw)) budget = val;
   }
 
-  const minMatch = lower.match(/(\d+)\s*min/);
+  // Distance: "20 min", "20 minutes", "20-minute"
+  const minMatch = lower.match(/(\d+)\s*[-\s]?min(?:ute)?s?/);
   if (minMatch) distanceMinutes = parseInt(minMatch[1]);
-  for (const [kw, val] of Object.entries(DISTANCE_KEYWORDS)) {
-    if (lower.includes(kw) && distanceMinutes === undefined) distanceMinutes = val;
+  // Distance keywords (multi-word first)
+  for (const [kw, val] of Object.entries(DISTANCE_KEYWORDS).sort((a, b) => b[0].length - a[0].length)) {
+    if (distanceMinutes === undefined && lower.includes(kw)) distanceMinutes = val;
   }
+  // Cap "anywhere" sentinel so it never filters anything out
+  if (distanceMinutes !== undefined && distanceMinutes >= 999) distanceMinutes = undefined;
 
-  for (const [kw, vibe] of Object.entries(VIBE_KEYWORDS)) {
+  // Vibe keywords (multi-word phrases first, then single words)
+  for (const [kw, vibe] of Object.entries(VIBE_KEYWORDS).sort((a, b) => b[0].length - a[0].length)) {
     if (lower.includes(kw) && !vibes.includes(vibe)) vibes.push(vibe);
   }
 
-  const groupMatch = lower.match(/(\d+)\s*people/);
+  // Group size
+  const groupMatch = lower.match(/(\d+)\s*(?:people|person|of us|friends|guys)/);
   const groupSize = groupMatch ? parseInt(groupMatch[1]) : undefined;
 
   return { budget, distanceMinutes, vibes, groupSize, rawText: raw };
 }
 
-function distanceScore(activity: Activity, maxMinutes?: number): number {
-  const distanceOrder: Record<string, number> = {
-    walking: 5, nearby: 10, 'short-drive': 25, 'road-trip': 60,
-  };
-  const activityMinutes = distanceOrder[activity.distanceType];
-  if (maxMinutes === undefined) return 10;
-  if (activityMinutes <= maxMinutes) return 15;
-  if (activityMinutes <= maxMinutes * 1.3) return 5;
-  return -15;
+// ─────────────────────────── scoring helpers ─────────────────────────────────
+
+const DISTANCE_MINUTES: Record<string, number> = {
+  walking: 5, nearby: 10, 'short-drive': 25, 'road-trip': 90,
+};
+
+function calcDistanceScore(activity: Activity, maxMinutes?: number): number {
+  const actMin = DISTANCE_MINUTES[activity.distanceType] ?? 25;
+  if (maxMinutes === undefined) return 5; // neutral — no constraint given
+  if (actMin <= maxMinutes) return 20;
+  if (actMin <= maxMinutes * 1.25) return 3; // slightly over limit
+  return -20; // way over limit
 }
 
-function budgetScore(activity: Activity, budget?: number): number {
-  if (budget === undefined) return 10;
-  if (activity.estimatedCostMax <= budget) return 20;
-  if (activity.estimatedCostMin <= budget) return 5;
-  return -20;
+function calcBudgetScore(activity: Activity, budget?: number): number {
+  if (budget === undefined) return 5; // neutral
+  if (activity.estimatedCostMax <= budget) return 25;
+  if (activity.estimatedCostMin <= budget) return 8;
+  return -25;
 }
 
-function vibeScore(activity: Activity, vibes: Vibe[]): number {
-  if (vibes.length === 0) return 10;
+function calcVibeScore(activity: Activity, vibes: Vibe[]): number {
+  if (vibes.length === 0) return 5; // neutral
   const matches = vibes.filter(v => activity.vibes.includes(v)).length;
-  return matches * 15;
+  if (matches === 0) return -5; // vibes were specified but this activity doesn't match
+  return matches * 20; // strong signal when vibes match
 }
 
-function warningPenalty(activity: Activity): number {
-  return activity.warnings.length * -3;
+function calcWarningPenalty(activity: Activity): number {
+  return activity.warnings.length * -4;
 }
 
-export function rankActivities(prompt: ParsedPrompt, pool: Activity[] = activities): RankedActivity[] {
+/** Returns a small random jitter to break ties with variety. */
+function jitter(): number {
+  return Math.random() * 6 - 3; // ±3 points
+}
+
+/** Keyword-based direct boost: +weight when user mentions an activity by name/category. */
+function calcKeywordBoost(activity: Activity, lowerPrompt: string): number {
+  const titleLower = activity.title.toLowerCase();
+  const idLower = activity.id.toLowerCase();
+  let boost = 0;
+
+  for (const { words, fragments, weight } of ACTIVITY_KEYWORDS) {
+    const userMentioned = words.some(w => lowerPrompt.includes(w));
+    if (!userMentioned) continue;
+    const activityMatches = fragments.some(
+      f => titleLower.includes(f) || idLower.includes(f)
+    );
+    if (activityMatches) boost += weight;
+  }
+
+  return boost;
+}
+
+// ─────────────────────────── rank functions ──────────────────────────────────
+
+export function rankActivities(
+  prompt: ParsedPrompt,
+  pool: Activity[] = activities,
+  topN = 5
+): RankedActivity[] {
+  const lowerPrompt = prompt.rawText.toLowerCase();
+
   const scored = pool.map(activity => {
     const score =
-      50 +
-      budgetScore(activity, prompt.budget) +
-      distanceScore(activity, prompt.distanceMinutes) +
-      vibeScore(activity, prompt.vibes) +
-      warningPenalty(activity);
+      40 +
+      calcBudgetScore(activity, prompt.budget) +
+      calcDistanceScore(activity, prompt.distanceMinutes) +
+      calcVibeScore(activity, prompt.vibes) +
+      calcKeywordBoost(activity, lowerPrompt) +
+      calcWarningPenalty(activity) +
+      jitter();
 
+    // Build human-readable reason
     const reasons: string[] = [];
     if (prompt.budget !== undefined && activity.estimatedCostMax <= prompt.budget)
       reasons.push(`fits your $${prompt.budget} budget`);
     if (prompt.distanceMinutes !== undefined) {
-      const order: Record<string, number> = {
-        walking: 5, nearby: 10, 'short-drive': 25, 'road-trip': 60,
-      };
-      if (order[activity.distanceType] <= prompt.distanceMinutes)
-        reasons.push('within your drive limit');
+      const actMin = DISTANCE_MINUTES[activity.distanceType] ?? 25;
+      if (actMin <= prompt.distanceMinutes) reasons.push('within your drive limit');
     }
     const matchedVibes = prompt.vibes.filter(v => activity.vibes.includes(v));
-    if (matchedVibes.length > 0) reasons.push(`matches ${matchedVibes.join(', ')} vibe`);
+    if (matchedVibes.length > 0) reasons.push(`matches ${matchedVibes.join(' & ')} vibe`);
     if (activity.effortLevel === 'low') reasons.push('easy to coordinate');
     if (reasons.length === 0) reasons.push('solid all-around option');
 
@@ -107,7 +269,9 @@ export function rankActivities(prompt: ParsedPrompt, pool: Activity[] = activiti
     };
   });
 
-  return scored.sort((a, b) => b.score - a.score).slice(0, 3);
+  return scored
+    .sort((a, b) => b.score - a.score)
+    .slice(0, topN);
 }
 
 export function rankWithConstraints(rawPrompt: string, constraints: GroupConstraint[]): RankedActivity[] {
