@@ -75,7 +75,7 @@ export function ChatMode() {
         </button>
       </div>
 
-      {submitted && results.length === 0 && !loading && (
+      {submitted && results.length === 0 && (
         <EmptyState
           message="No ideas matched those constraints."
           hint="Try adding a budget, vibe, or drive limit."
