@@ -341,8 +341,11 @@ export function rankActivities(
     .slice(0, topN);
 }
 
-export function rankWithConstraints(rawPrompt: string, constraints: GroupConstraint[]): RankedActivity[] {
-  const base = parsePrompt(rawPrompt);
+export function rankWithConstraints(
+  rawOrParsed: string | ParsedPrompt,
+  constraints: GroupConstraint[]
+): RankedActivity[] {
+  const base = typeof rawOrParsed === 'string' ? parsePrompt(rawOrParsed) : rawOrParsed;
   const budgets = constraints.map(c => c.maxBudget).filter((b): b is number => b !== undefined);
   const distances = constraints.map(c => c.maxDistanceMinutes).filter((d): d is number => d !== undefined);
   const merged: ParsedPrompt = {
@@ -353,6 +356,45 @@ export function rankWithConstraints(rawPrompt: string, constraints: GroupConstra
       : base.distanceMinutes,
   };
   return rankActivities(merged);
+}
+
+// ─────────────────────────── AI-powered parser ───────────────────────────────
+
+/**
+ * Sends the user's raw text to the Netlify serverless function which calls
+ * GPT-4o-mini to extract structured categories. Falls back to local keyword
+ * matching if the function is unavailable or returns an error.
+ */
+export async function parsePromptAI(raw: string): Promise<ParsedPrompt> {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 9000);
+
+    const res = await fetch('/.netlify/functions/parse-prompt', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ rawText: raw }),
+      signal: controller.signal,
+    });
+    clearTimeout(timeout);
+
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+
+    return {
+      budget: data.budget,
+      distanceMinutes: data.distanceMinutes,
+      vibes: data.vibes ?? [],
+      effortLevel: data.effortLevel,
+      indoorOutdoor: data.indoorOutdoor,
+      groupSize: data.groupSize,
+      rawText: raw,
+    };
+  } catch (err) {
+    console.warn('AI parse failed, falling back to keyword matching:', err);
+    return parsePrompt(raw);
+  }
 }
 
 export function generateImprovedPlan(ranked: RankedActivity, constraints: GroupConstraint[]): ImprovedPlan {

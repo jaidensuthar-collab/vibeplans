@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Group, GroupConstraint, ImprovedPlan } from '../lib/types';
 import { createGroup, addVote, getVoteCounts, getWinningActivityId } from '../lib/groupUtils';
-import { rankWithConstraints, generateImprovedPlan } from '../lib/mockPlanner';
+import { parsePromptAI, rankWithConstraints, generateImprovedPlan } from '../lib/mockPlanner';
 import { VotePanel } from './VotePanel';
 import { ImprovedPlanCard } from './ImprovedPlanCard';
 import { EmptyState } from './EmptyState';
@@ -17,6 +17,7 @@ export function GroupMode() {
   const [myBudget, setMyBudget] = useState('');
   const [myDistance, setMyDistance] = useState('');
   const [improvedPlan, setImprovedPlan] = useState<ImprovedPlan | null>(null);
+  const [loading, setLoading] = useState(false);
   const [myId] = useState(() => crypto.randomUUID());
 
   function handleCreateGroup() {
@@ -27,7 +28,7 @@ export function GroupMode() {
     setStep('setup');
   }
 
-  function handleAddConstraintAndVote() {
+  async function handleAddConstraintAndVote() {
     if (!group) return;
     const constraint: GroupConstraint = {
       memberId: myId,
@@ -39,10 +40,16 @@ export function GroupMode() {
       ...group.constraints.filter(c => c.memberId !== myId),
       constraint,
     ];
-    const topActivities = rankWithConstraints(group.prompt, updatedConstraints);
-    const updated: Group = { ...group, constraints: updatedConstraints, topActivities };
-    setGroup(updated);
-    setStep('vote');
+    setLoading(true);
+    try {
+      const parsedBase = await parsePromptAI(group.prompt);
+      const topActivities = rankWithConstraints(parsedBase, updatedConstraints);
+      const updated: Group = { ...group, constraints: updatedConstraints, topActivities };
+      setGroup(updated);
+      setStep('vote');
+    } finally {
+      setLoading(false);
+    }
   }
 
   function handleVote(activityId: string) {
@@ -131,9 +138,20 @@ export function GroupMode() {
           />
           <button
             onClick={handleAddConstraintAndVote}
-            className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl transition-colors"
+            disabled={loading}
+            className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold rounded-xl transition-colors flex items-center justify-center gap-2"
           >
-            See Top Ideas & Vote
+            {loading ? (
+              <>
+                <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+                Finding ideas...
+              </>
+            ) : (
+              'See Top Ideas & Vote'
+            )}
           </button>
         </div>
       )}

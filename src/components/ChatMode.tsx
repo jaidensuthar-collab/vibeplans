@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { RankedActivity } from '../lib/types';
-import { parsePrompt, rankActivities } from '../lib/mockPlanner';
+import { parsePromptAI, rankActivities } from '../lib/mockPlanner';
 import { ActivityCard } from './ActivityCard';
 import { EmptyState } from './EmptyState';
 
@@ -14,22 +14,29 @@ export function ChatMode() {
   const [input, setInput] = useState('');
   const [results, setResults] = useState<RankedActivity[]>([]);
   const [submitted, setSubmitted] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  function handleSubmit() {
+  async function handleSubmit() {
     const trimmed = input.trim();
     if (!trimmed) {
       setError('Type something so VibePlan can rank ideas for you.');
       return;
     }
     if (trimmed.length < 5) {
-      setError('Add a little more detail — try mentioning a budget, vibe, or how far you\'ll drive.');
+      setError("Add a little more detail — try mentioning a budget, vibe, or how far you'll drive.");
       return;
     }
     setError('');
-    const ranked = rankActivities(parsePrompt(trimmed));
-    setResults(ranked);
-    setSubmitted(true);
+    setLoading(true);
+    try {
+      const parsed = await parsePromptAI(trimmed);
+      const ranked = rankActivities(parsed);
+      setResults(ranked);
+      setSubmitted(true);
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -69,27 +76,38 @@ export function ChatMode() {
         </div>
         <button
           onClick={handleSubmit}
-          className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white font-semibold rounded-xl transition-colors"
+          disabled={loading}
+          className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 disabled:opacity-60 disabled:cursor-not-allowed text-white font-semibold rounded-xl transition-colors flex items-center justify-center gap-2"
         >
-          Find Ideas
+          {loading ? (
+            <>
+              <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+              Finding ideas...
+            </>
+          ) : (
+            'Find Ideas'
+          )}
         </button>
       </div>
 
-      {submitted && results.length === 0 && (
+      {submitted && !loading && results.length === 0 && (
         <EmptyState
           message="No ideas matched those constraints."
           hint="Try adding a budget, vibe, or drive limit."
         />
       )}
 
-      {results.length > 0 && (
+      {results.length > 0 && !loading && (
         <section className="space-y-4">
           <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100">Top Ideas</h3>
           {results.map((r, i) => (
             <ActivityCard key={r.activity.id} ranked={r} rank={i + 1} />
           ))}
           <p className="text-xs text-center text-gray-400 dark:text-gray-600 pb-4">
-            Powered by mock AI — OpenAI integration coming in Phase 3
+            Powered by GPT-4o-mini
           </p>
         </section>
       )}
