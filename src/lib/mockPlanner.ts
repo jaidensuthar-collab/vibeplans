@@ -1,5 +1,5 @@
 import { activities } from '../data/activities';
-import { Activity, ParsedPrompt, RankedActivity, Vibe, GroupConstraint, ImprovedPlan } from './types';
+import { Activity, EffortLevel, IndoorOutdoor, ParsedPrompt, RankedActivity, Vibe, GroupConstraint, ImprovedPlan } from './types';
 
 // ─────────────────────────── keyword maps ────────────────────────────────────
 
@@ -78,6 +78,38 @@ const DISTANCE_KEYWORDS: Record<string, number> = {
   'long drive': 90, 'willing to drive': 60, 'far away': 60,
 };
 
+// ─────────────── effort level keywords ──────────────────────────────────────
+
+const EFFORT_KEYWORDS: Record<string, EffortLevel> = {
+  // Low effort
+  easy: 'low', lazy: 'low', 'low effort': 'low', 'low-effort': 'low', 'no effort': 'low',
+  relaxed: 'low', 'laid back': 'low', 'laid-back': 'low', simple: 'low', light: 'low',
+  effortless: 'low', minimal: 'low', 'nothing intense': 'low', 'take it easy': 'low',
+  chill: 'low', lowkey: 'low', 'low key': 'low', 'low-key': 'low', mellow: 'low',
+  // High effort
+  active: 'high', energetic: 'high', intense: 'high', workout: 'high', exercise: 'high',
+  'high effort': 'high', 'high-effort': 'high', physical: 'high', strenuous: 'high',
+  athletic: 'high', challenging: 'high', 'high energy': 'high', sweat: 'high',
+  sporty: 'high', vigorous: 'high', hardcore: 'high', 'work up a sweat': 'high',
+  // Medium (less common to specify but handle it)
+  moderate: 'medium', 'medium effort': 'medium', balanced: 'medium',
+};
+
+// ─────────────── indoor / outdoor keywords ───────────────────────────────────
+
+const INDOOR_OUTDOOR_KEYWORDS: Record<string, IndoorOutdoor> = {
+  // Indoor
+  inside: 'indoor', indoors: 'indoor', indoor: 'indoor',
+  'air conditioning': 'indoor', 'air conditioned': 'indoor', 'stay inside': 'indoor',
+  'out of heat': 'indoor', 'out of the heat': 'indoor', 'out of the sun': 'indoor',
+  'inside somewhere': 'indoor', 'somewhere inside': 'indoor', 'in the ac': 'indoor',
+  // Outdoor
+  outside: 'outdoor', outdoors: 'outdoor', outdoor: 'outdoor',
+  'fresh air': 'outdoor', 'open air': 'outdoor', nature: 'outdoor',
+  'go outside': 'outdoor', 'be outside': 'outdoor', 'get outside': 'outdoor',
+  'open space': 'outdoor', 'outside somewhere': 'outdoor',
+};
+
 // ─────────── direct activity keyword boosts ──────────────────────────────────
 // If the user's prompt contains any entry in `words`, activities whose
 // title/id contains any entry in `fragments` get a score bonus of `weight`.
@@ -136,6 +168,8 @@ export function parsePrompt(raw: string): ParsedPrompt {
   const lower = raw.toLowerCase();
   let budget: number | undefined;
   let distanceMinutes: number | undefined;
+  let effortLevel: EffortLevel | undefined;
+  let indoorOutdoor: IndoorOutdoor | undefined;
   const vibes: Vibe[] = [];
 
   // Dollar amount regex: "$20", "$15 each", "15 dollars", "15 bucks"
@@ -168,11 +202,21 @@ export function parsePrompt(raw: string): ParsedPrompt {
     if (lower.includes(kw) && !vibes.includes(vibe)) vibes.push(vibe);
   }
 
+  // Effort level keywords (multi-word first)
+  for (const [kw, level] of Object.entries(EFFORT_KEYWORDS).sort((a, b) => b[0].length - a[0].length)) {
+    if (effortLevel === undefined && lower.includes(kw)) effortLevel = level;
+  }
+
+  // Indoor / outdoor keywords (multi-word first)
+  for (const [kw, loc] of Object.entries(INDOOR_OUTDOOR_KEYWORDS).sort((a, b) => b[0].length - a[0].length)) {
+    if (indoorOutdoor === undefined && lower.includes(kw)) indoorOutdoor = loc;
+  }
+
   // Group size
   const groupMatch = lower.match(/(\d+)\s*(?:people|person|of us|friends|guys)/);
   const groupSize = groupMatch ? parseInt(groupMatch[1]) : undefined;
 
-  return { budget, distanceMinutes, vibes, groupSize, rawText: raw };
+  return { budget, distanceMinutes, vibes, groupSize, effortLevel, indoorOutdoor, rawText: raw };
 }
 
 // ─────────────────────────── scoring helpers ─────────────────────────────────
@@ -205,6 +249,23 @@ function calcVibeScore(activity: Activity, vibes: Vibe[]): number {
 
 function calcWarningPenalty(activity: Activity): number {
   return activity.warnings.length * -4;
+}
+
+function calcEffortScore(activity: Activity, effortLevel?: EffortLevel): number {
+  if (effortLevel === undefined) return 0; // no preference stated
+  if (activity.effortLevel === effortLevel) return 22;       // exact match
+  // Adjacent levels are ok; opposite is penalized
+  const levels: EffortLevel[] = ['low', 'medium', 'high'];
+  const gap = Math.abs(levels.indexOf(activity.effortLevel) - levels.indexOf(effortLevel));
+  if (gap === 1) return 4;   // adjacent (e.g. asked low, got medium)
+  return -22;                // opposite (asked low, got high)
+}
+
+function calcIndoorOutdoorScore(activity: Activity, indoorOutdoor?: IndoorOutdoor): number {
+  if (indoorOutdoor === undefined) return 0;
+  if (activity.indoorOutdoor === 'both') return 8;         // 'both' works for any preference
+  if (activity.indoorOutdoor === indoorOutdoor) return 18; // exact match
+  return -18;                                               // mismatch
 }
 
 /** Returns a small random jitter to break ties with variety. */
@@ -245,6 +306,8 @@ export function rankActivities(
       calcBudgetScore(activity, prompt.budget) +
       calcDistanceScore(activity, prompt.distanceMinutes) +
       calcVibeScore(activity, prompt.vibes) +
+      calcEffortScore(activity, prompt.effortLevel) +
+      calcIndoorOutdoorScore(activity, prompt.indoorOutdoor) +
       calcKeywordBoost(activity, lowerPrompt) +
       calcWarningPenalty(activity) +
       jitter();
@@ -259,7 +322,11 @@ export function rankActivities(
     }
     const matchedVibes = prompt.vibes.filter(v => activity.vibes.includes(v));
     if (matchedVibes.length > 0) reasons.push(`matches ${matchedVibes.join(' & ')} vibe`);
-    if (activity.effortLevel === 'low') reasons.push('easy to coordinate');
+    if (prompt.effortLevel !== undefined && activity.effortLevel === prompt.effortLevel)
+      reasons.push(`${prompt.effortLevel} effort`);
+    if (prompt.indoorOutdoor !== undefined && (activity.indoorOutdoor === prompt.indoorOutdoor || activity.indoorOutdoor === 'both'))
+      reasons.push(prompt.indoorOutdoor === 'indoor' ? 'indoors' : 'outdoors');
+    if (prompt.effortLevel === undefined && activity.effortLevel === 'low') reasons.push('easy to coordinate');
     if (reasons.length === 0) reasons.push('solid all-around option');
 
     return {

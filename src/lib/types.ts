@@ -46,6 +46,8 @@ export interface ParsedPrompt {
   distanceMinutes?: number;
   vibes: Vibe[];
   groupSize?: number;
+  effortLevel?: EffortLevel;
+  indoorOutdoor?: IndoorOutdoor;
   rawText: string;
 }
 
