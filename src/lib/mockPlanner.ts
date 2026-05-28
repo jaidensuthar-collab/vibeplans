@@ -227,10 +227,17 @@ const DISTANCE_MINUTES: Record<string, number> = {
 
 function calcDistanceScore(activity: Activity, maxMinutes?: number): number {
   const actMin = DISTANCE_MINUTES[activity.distanceType] ?? 25;
-  if (maxMinutes === undefined) return 5; // neutral — no constraint given
-  if (actMin <= maxMinutes) return 20;
-  if (actMin <= maxMinutes * 1.25) return 3; // slightly over limit
-  return -20; // way over limit
+  if (maxMinutes === undefined) {
+    // No constraint — slightly prefer closer activities by default
+    if (actMin <= 5)  return 8;  // walking distance
+    if (actMin <= 10) return 6;  // nearby
+    if (actMin <= 25) return 4;  // short drive
+    return 1;                    // road trip
+  }
+  if (actMin <= maxMinutes)          return 22;   // fits within limit
+  if (actMin <= maxMinutes + 10)     return -5;   // within 10 min grace window
+  if (actMin <= maxMinutes * 2)      return -30;  // moderately over — strong penalty
+  return -55;                                      // way over — near elimination
 }
 
 function calcBudgetScore(activity: Activity, budget?: number): number {
