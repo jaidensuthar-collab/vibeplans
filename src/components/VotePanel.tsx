@@ -7,9 +7,10 @@ interface Props {
   userVote?: string;
   winningId?: string;
   onVote: (activityId: string) => void;
+  userLocation?: { lat: number; lon: number };
 }
 
-export function VotePanel({ activities, voteCounts, userVote, winningId, onVote }: Props) {
+export function VotePanel({ activities, voteCounts, userVote, winningId, onVote, userLocation }: Props) {
   return (
     <div className="space-y-4">
       {activities.map((r, i) => (
@@ -25,6 +26,7 @@ export function VotePanel({ activities, voteCounts, userVote, winningId, onVote 
           <ActivityCard
             ranked={r}
             rank={i + 1}
+            userLocation={userLocation}
             onVote={() => onVote(r.activity.id)}
             voted={userVote === r.activity.id}
             voteCount={voteCounts[r.activity.id] ?? 0}

@@ -1,9 +1,11 @@
 import { RankedActivity } from '../lib/types';
 import { WarningBadge } from './WarningBadge';
+import { getActivityDriveMinutes, formatDriveTime } from '../lib/distance';
 
 interface Props {
   ranked: RankedActivity;
   rank: number;
+  userLocation?: { lat: number; lon: number };
   onVote?: () => void;
   voted?: boolean;
   voteCount?: number;
@@ -41,8 +43,17 @@ const INDOOR_LABEL: Record<string, string> = {
   indoor: 'Indoor', outdoor: 'Outdoor', both: 'Indoor / Outdoor',
 };
 
-export function ActivityCard({ ranked, rank, onVote, voted, voteCount }: Props) {
+export function ActivityCard({ ranked, rank, userLocation, onVote, voted, voteCount }: Props) {
   const { activity, rankingReason } = ranked;
+
+  // Use real GPS distance when available, otherwise fall back to generic label
+  const distanceLabel = (() => {
+    if (userLocation) {
+      const mins = getActivityDriveMinutes(activity.id, userLocation.lat, userLocation.lon);
+      if (mins !== null) return formatDriveTime(mins);
+    }
+    return DISTANCE_LABELS[activity.distanceType] ?? activity.distanceType;
+  })();
 
   const costLabel =
     activity.estimatedCostMin === 0 && activity.estimatedCostMax === 0
@@ -81,7 +92,7 @@ export function ActivityCard({ ranked, rank, onVote, voted, voteCount }: Props) 
         <div className="flex items-center gap-1.5 bg-gray-50 dark:bg-gray-700/50 rounded-lg px-2.5 py-2">
           <span>📍</span>
           <span className="font-semibold text-gray-700 dark:text-gray-200">
-            {DISTANCE_LABELS[activity.distanceType] ?? activity.distanceType}
+            {distanceLabel}
           </span>
         </div>
         <div className="flex items-center gap-1.5 bg-gray-50 dark:bg-gray-700/50 rounded-lg px-2.5 py-2">

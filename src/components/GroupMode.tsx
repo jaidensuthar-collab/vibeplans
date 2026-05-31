@@ -1,14 +1,18 @@
 import { useState } from 'react';
 import { Group, GroupConstraint, ImprovedPlan } from '../lib/types';
 import { createGroup, addVote, getVoteCounts, getWinningActivityId } from '../lib/groupUtils';
-import { parsePromptAI, rankWithConstraints, generateImprovedPlan } from '../lib/mockPlanner';
+import { parsePromptAI, rankWithConstraints, generateImprovedPlan, UserLocation } from '../lib/mockPlanner';
 import { VotePanel } from './VotePanel';
 import { ImprovedPlanCard } from './ImprovedPlanCard';
 import { EmptyState } from './EmptyState';
 
 type Step = 'entry' | 'setup' | 'vote' | 'improved';
 
-export function GroupMode() {
+interface Props {
+  userLocation?: UserLocation;
+}
+
+export function GroupMode({ userLocation }: Props) {
   const [step, setStep] = useState<Step>('entry');
   const [group, setGroup] = useState<Group | null>(null);
   const [prompt, setPrompt] = useState('');
@@ -43,7 +47,7 @@ export function GroupMode() {
     setLoading(true);
     try {
       const parsedBase = await parsePromptAI(group.prompt);
-      const topActivities = rankWithConstraints(parsedBase, updatedConstraints);
+      const topActivities = rankWithConstraints(parsedBase, updatedConstraints, userLocation);
       const updated: Group = { ...group, constraints: updatedConstraints, topActivities };
       setGroup(updated);
       setStep('vote');
@@ -173,6 +177,7 @@ export function GroupMode() {
               userVote={group.votes.find(v => v.memberId === myId)?.activityId}
               winningId={group.winningActivityId}
               onVote={handleVote}
+              userLocation={userLocation}
             />
           )}
           {group.winningActivityId && (

@@ -1,5 +1,8 @@
 import { activities } from '../data/activities';
 import { Activity, EffortLevel, IndoorOutdoor, ParsedPrompt, RankedActivity, Vibe, GroupConstraint, ImprovedPlan } from './types';
+import { getActivityDriveMinutes } from './distance';
+
+export type UserLocation = { lat: number; lon: number };
 
 // ─────────────────────────── keyword maps ────────────────────────────────────
 
@@ -225,8 +228,18 @@ const DISTANCE_MINUTES: Record<string, number> = {
   walking: 5, nearby: 10, 'short-drive': 25, 'road-trip': 90,
 };
 
-function calcDistanceScore(activity: Activity, maxMinutes?: number): number {
-  const actMin = DISTANCE_MINUTES[activity.distanceType] ?? 25;
+function resolveActivityMinutes(activity: Activity, userLocation?: UserLocation): number {
+  // Use real GPS distance when available
+  if (userLocation) {
+    const real = getActivityDriveMinutes(activity.id, userLocation.lat, userLocation.lon);
+    if (real !== null) return real;
+  }
+  // Fall back to the generic category estimate
+  return DISTANCE_MINUTES[activity.distanceType] ?? 25;
+}
+
+function calcDistanceScore(activity: Activity, maxMinutes?: number, userLocation?: UserLocation): number {
+  const actMin = resolveActivityMinutes(activity, userLocation);
   if (maxMinutes === undefined) {
     // No constraint — slightly prefer closer activities by default
     if (actMin <= 5)  return 8;  // walking distance
@@ -303,7 +316,8 @@ function calcKeywordBoost(activity: Activity, lowerPrompt: string): number {
 export function rankActivities(
   prompt: ParsedPrompt,
   pool: Activity[] = activities,
-  topN = 5
+  topN = 5,
+  userLocation?: UserLocation
 ): RankedActivity[] {
   const lowerPrompt = prompt.rawText.toLowerCase();
 
@@ -311,7 +325,7 @@ export function rankActivities(
     const score =
       40 +
       calcBudgetScore(activity, prompt.budget) +
-      calcDistanceScore(activity, prompt.distanceMinutes) +
+      calcDistanceScore(activity, prompt.distanceMinutes, userLocation) +
       calcVibeScore(activity, prompt.vibes) +
       calcEffortScore(activity, prompt.effortLevel) +
       calcIndoorOutdoorScore(activity, prompt.indoorOutdoor) +
@@ -324,8 +338,14 @@ export function rankActivities(
     if (prompt.budget !== undefined && activity.estimatedCostMax <= prompt.budget)
       reasons.push(`fits your $${prompt.budget} budget`);
     if (prompt.distanceMinutes !== undefined) {
-      const actMin = DISTANCE_MINUTES[activity.distanceType] ?? 25;
-      if (actMin <= prompt.distanceMinutes) reasons.push('within your drive limit');
+      const actMin = resolveActivityMinutes(activity, userLocation);
+      if (actMin <= prompt.distanceMinutes) {
+        // Show real drive time when we have GPS data
+        const realMin = userLocation
+          ? getActivityDriveMinutes(activity.id, userLocation.lat, userLocation.lon)
+          : null;
+        reasons.push(realMin !== null ? `~${realMin} min from you` : 'within your drive limit');
+      }
     }
     const matchedVibes = prompt.vibes.filter(v => activity.vibes.includes(v));
     if (matchedVibes.length > 0) reasons.push(`matches ${matchedVibes.join(' & ')} vibe`);
@@ -350,7 +370,8 @@ export function rankActivities(
 
 export function rankWithConstraints(
   rawOrParsed: string | ParsedPrompt,
-  constraints: GroupConstraint[]
+  constraints: GroupConstraint[],
+  userLocation?: UserLocation
 ): RankedActivity[] {
   const base = typeof rawOrParsed === 'string' ? parsePrompt(rawOrParsed) : rawOrParsed;
   const budgets = constraints.map(c => c.maxBudget).filter((b): b is number => b !== undefined);
@@ -362,7 +383,7 @@ export function rankWithConstraints(
       ? Math.min(...distances, base.distanceMinutes ?? Infinity)
       : base.distanceMinutes,
   };
-  return rankActivities(merged);
+  return rankActivities(merged, activities, 5, userLocation);
 }
 
 // ─────────────────────────── AI-powered parser ───────────────────────────────

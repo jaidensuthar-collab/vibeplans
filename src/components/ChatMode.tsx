@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { RankedActivity } from '../lib/types';
-import { parsePromptAI, rankActivities } from '../lib/mockPlanner';
+import { parsePromptAI, rankActivities, UserLocation } from '../lib/mockPlanner';
 import { ActivityCard } from './ActivityCard';
 import { EmptyState } from './EmptyState';
 
@@ -10,7 +10,11 @@ const SUGGESTION_CHIPS = [
   'Random adventure, no idea where, cheap',
 ];
 
-export function ChatMode() {
+interface Props {
+  userLocation?: UserLocation;
+}
+
+export function ChatMode({ userLocation }: Props) {
   const [input, setInput] = useState('');
   const [results, setResults] = useState<RankedActivity[]>([]);
   const [submitted, setSubmitted] = useState(false);
@@ -31,7 +35,7 @@ export function ChatMode() {
     setLoading(true);
     try {
       const parsed = await parsePromptAI(trimmed);
-      const ranked = rankActivities(parsed);
+      const ranked = rankActivities(parsed, undefined, 5, userLocation);
       setResults(ranked);
       setSubmitted(true);
     } finally {
@@ -104,7 +108,7 @@ export function ChatMode() {
         <section className="space-y-4">
           <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100">Top Ideas</h3>
           {results.map((r, i) => (
-            <ActivityCard key={r.activity.id} ranked={r} rank={i + 1} />
+            <ActivityCard key={r.activity.id} ranked={r} rank={i + 1} userLocation={userLocation} />
           ))}
           <p className="text-xs text-center text-gray-400 dark:text-gray-600 pb-4">
             Powered by GPT-4o-mini
