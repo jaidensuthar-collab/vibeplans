@@ -19,6 +19,15 @@ export default function App() {
     document.documentElement.classList.toggle('dark', dark);
   }, [dark]);
 
+  // Auto-request location as soon as the user enters Chat or Group mode.
+  // If they already granted it → silently succeeds. If not → browser shows its
+  // permission dialog so the user understands why we're asking.
+  useEffect(() => {
+    if (page === 'chat' || page === 'group') {
+      requestLocation();
+    }
+  }, [page, requestLocation]);
+
   const userLocation =
     geo.status === 'granted' ? { lat: geo.lat, lon: geo.lon } : undefined;
 

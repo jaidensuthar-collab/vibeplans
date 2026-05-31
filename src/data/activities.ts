@@ -470,7 +470,7 @@ export const activities: Activity[] = [
     id: 'lake-travis-zipline', title: 'Lake Travis Zipline — Double Barrel Shotgun',
     summary: 'Launch off a 20-story cliff and hit 50 mph on the longest, fastest zipline in Texas over Lake Travis.',
     vibes: ['active', 'random-adventure'], estimatedCostMin: 75, estimatedCostMax: 95,
-    timeNeeded: '2–4 hours', distanceType: 'short-drive',
+    timeNeeded: '2–4 hours', distanceType: 'road-trip',
     bestFor: 'Thrill seekers of any size', effortLevel: 'low', indoorOutdoor: 'outdoor',
     warnings: [
       { type: 'planning-needed', reason: 'Book online well in advance — fills up fast on weekends.' },
@@ -647,7 +647,7 @@ export const activities: Activity[] = [
     id: 'hamilton-pool', title: 'Hamilton Pool Preserve Hike and Swim',
     summary: 'A collapsed grotto with a 50-ft waterfall flowing into an emerald pool surrounded by fern-covered canyon walls.',
     vibes: ['chill', 'active', 'creative'], estimatedCostMin: 15, estimatedCostMax: 25,
-    timeNeeded: '3–5 hours', distanceType: 'short-drive',
+    timeNeeded: '3–5 hours', distanceType: 'road-trip',
     bestFor: 'Any group who can handle a steep quarter-mile hike', effortLevel: 'medium', indoorOutdoor: 'outdoor',
     warnings: [
       { type: 'planning-needed', reason: 'Timed reservations REQUIRED — book at traviscountytx.gov days in advance. Swimming not always allowed.' },
@@ -839,7 +839,7 @@ export const activities: Activity[] = [
     id: 'pedernales-falls', title: 'Pedernales Falls State Park',
     summary: 'Limestone steps and massive waterfall formations along the Pedernales River. Great swimming and hiking in the Hill Country.',
     vibes: ['active', 'chill', 'random-adventure'], estimatedCostMin: 7, estimatedCostMax: 20,
-    timeNeeded: '4–6 hours', distanceType: 'short-drive',
+    timeNeeded: '4–6 hours', distanceType: 'road-trip',
     bestFor: 'Active groups', effortLevel: 'medium', indoorOutdoor: 'outdoor',
     warnings: [
       { type: 'weather-risk', reason: 'River closes for flash flooding — check the state parks app day-of.' },
@@ -4105,7 +4105,7 @@ export const activities: Activity[] = [
     summary: 'A spring-fed swimming hole west of Austin with a rope swing, cypress trees, and cold clear water — genuinely one of the best spots in the state.',
     vibes: ['active', 'chill', 'social'],
     estimatedCostMin: 5, estimatedCostMax: 10,
-    timeNeeded: 'Full day', distanceType: 'short-drive',
+    timeNeeded: 'Full day', distanceType: 'road-trip',
     bestFor: 'Any group', effortLevel: 'medium', indoorOutdoor: 'outdoor',
     warnings: [
       { type: 'weather-risk', reason: 'Closes during heavy rain events and flooding.' },
@@ -4119,7 +4119,7 @@ export const activities: Activity[] = [
     summary: 'A deep artesian spring that opens into an underwater cave system — the clearest blue-green water you\'ve ever seen in Texas.',
     vibes: ['active', 'random-adventure'],
     estimatedCostMin: 10, estimatedCostMax: 10,
-    timeNeeded: '3–5 hours', distanceType: 'short-drive',
+    timeNeeded: '3–5 hours', distanceType: 'road-trip',
     bestFor: 'Small groups', effortLevel: 'medium', indoorOutdoor: 'outdoor',
     warnings: [
       { type: 'planning-needed', reason: 'Reservations REQUIRED and they sell out weeks in advance.' },
@@ -4208,7 +4208,7 @@ export const activities: Activity[] = [
     summary: 'The Lost Pines of Bastrop are a pocket of loblolly pines isolated from the main forest — feels completely different from central Austin.',
     vibes: ['active', 'chill'],
     estimatedCostMin: 5, estimatedCostMax: 10,
-    timeNeeded: '3–5 hours', distanceType: 'short-drive',
+    timeNeeded: '3–5 hours', distanceType: 'road-trip',
     bestFor: 'Any group', effortLevel: 'medium', indoorOutdoor: 'outdoor',
     warnings: [{ type: 'needs-ride', reason: 'About 40 minutes southeast of Austin.' }],
     planningNotes: '$5/person day use fee. The main hiking trails are 1–5 miles and well-marked. The park has cabins if you want to stay overnight. Bring water and bug spray — the pine forest is humid. Great for birding too.',

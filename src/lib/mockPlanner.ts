@@ -241,11 +241,12 @@ function resolveActivityMinutes(activity: Activity, userLocation?: UserLocation)
 function calcDistanceScore(activity: Activity, maxMinutes?: number, userLocation?: UserLocation): number {
   const actMin = resolveActivityMinutes(activity, userLocation);
   if (maxMinutes === undefined) {
-    // No constraint — slightly prefer closer activities by default
-    if (actMin <= 5)  return 8;  // walking distance
-    if (actMin <= 10) return 6;  // nearby
-    if (actMin <= 25) return 4;  // short drive
-    return 1;                    // road trip
+    // No distance specified — prefer closer activities meaningfully so road-trips
+    // don't dominate just because they match vibes well.
+    if (actMin <= 5)  return 15;  // walking / at-home
+    if (actMin <= 10) return 12;  // nearby (≤10 min)
+    if (actMin <= 25) return 5;   // short drive (15–45 min)
+    return -8;                    // road trip — needs strong vibe/keyword match to surface
   }
   if (actMin <= maxMinutes)          return 22;   // fits within limit
   if (actMin <= maxMinutes + 10)     return -5;   // within 10 min grace window
