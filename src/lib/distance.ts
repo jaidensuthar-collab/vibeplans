@@ -16,15 +16,24 @@ export function haversineDistanceMiles(
 }
 
 /**
- * Converts straight-line miles to an estimated drive-time in minutes.
- * Uses tiered speeds tuned for Austin/Texas driving conditions.
+ * Converts straight-line (Haversine) miles to estimated drive-time in minutes.
+ *
+ * Austin road distances typically run 1.3–1.6× the straight-line distance, plus
+ * traffic delays. These multipliers are calibrated against real Google Maps times
+ * from multiple Austin-area starting points (Steiner Ranch, downtown, South Austin).
+ *
+ *   ≤ 2 mi  → local streets, ~12 mph  → × 5.0
+ *   ≤ 8 mi  → mixed city,   ~19 mph  → × 3.2
+ *   ≤ 20 mi → city + hwy,   ~24 mph  → × 2.5
+ *   ≤ 60 mi → highway,      ~40 mph  → × 1.5
+ *   > 60 mi → open highway, ~55 mph  → × 1.1
  */
 export function milesToDriveMinutes(miles: number): number {
-  if (miles <= 2)  return Math.round(miles * 4.0); // ~15 mph surface streets
-  if (miles <= 8)  return Math.round(miles * 2.8); // ~21 mph city traffic
-  if (miles <= 25) return Math.round(miles * 1.7); // ~35 mph mixed roads
-  if (miles <= 60) return Math.round(miles * 1.2); // ~50 mph highway
-  return Math.round(miles * 1.0);                  // ~60 mph open highway
+  if (miles <= 2)  return Math.round(miles * 5.0);
+  if (miles <= 8)  return Math.round(miles * 3.2);
+  if (miles <= 20) return Math.round(miles * 2.5);
+  if (miles <= 60) return Math.round(miles * 1.5);
+  return Math.round(miles * 1.1);
 }
 
 /**
