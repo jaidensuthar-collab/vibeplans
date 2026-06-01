@@ -16,23 +16,24 @@ Given the user's description of what they want to do, extract these fields and r
 
 Field meanings:
 - budget: max dollars per person. null if not mentioned or "no limit".
-- distanceMinutes: max drive time in minutes. Convert vague distance words to numbers:
-  - "walking distance", "walkable", "on foot" → 5
-  - "nearby", "close", "close by", "right here", "near me", "local", "around here" → 10
-  - "not far", "not too far", "short drive", "quick drive", "don't want to drive much" → 20
-  - "within Austin", "in Austin", "around Austin", "in the city" → 25
-  - "willing to drive", "don't mind driving", "anywhere" → null
-  - "road trip", "far", "long drive" → null (no limit)
-  - If they say a specific number of minutes, use that number exactly.
+- distanceMinutes: max drive time in minutes. Convert ALL proximity phrases to numbers:
+  - "walking distance", "walkable", "on foot", "right outside" → 5
+  - "nearby", "close", "close by", "close-by", "right here", "near me", "local", "around here", "close to home", "stay close", "keep it close", "in the area" → 10
+  - "not far", "not too far", "short drive", "quick drive", "don't want to drive much", "don't want to go far", "not trying to drive far", "no long drive", "stay local", "not going far" → 20
+  - "within Austin", "in Austin", "around Austin", "in the city", "around town" → 25
+  - "willing to drive", "open to driving", "don't mind driving", "down to drive", "anywhere" → null
+  - "road trip", "far", "long drive", "hours away" → null (no limit)
+  - If they say a specific number of minutes or miles, convert to minutes.
+  - If they mention a specific Austin-area location (e.g. "lake travis", "barton springs", "steiner ranch", "south congress"), set distanceMinutes to 25 to keep things in the Austin area.
   - null only if they truly don't care about distance.
 - vibes: any combination of "chill", "random-adventure", "active", "creative", "social".
-  - "chill" → relaxed, lazy, low-key, mellow, easy, take it easy, lounge, tired
-  - "random-adventure" → bored, spontaneous, no idea, anything, explore, yolo, wild, surprise me
-  - "active" → sporty, exercise, hiking, biking, swimming, physical, energetic, outdoors
-  - "creative" → art, crafts, painting, music, cooking, pottery, DIY
-  - "social" → friends, hangout, party, games, fun, group activity, night out, people
-- effortLevel: "low" if easy/lazy/chill/no effort, "high" if active/intense/workout/sporty, "medium" otherwise. null if not clear.
-- indoorOutdoor: "indoor" if inside/AC/out of heat/somewhere cool, "outdoor" if outside/nature/fresh air/open. null if not mentioned.
+  - "chill" → relaxed, lazy, low-key, mellow, easy, take it easy, lounge, tired, peaceful, calm
+  - "random-adventure" → bored, spontaneous, no idea, anything, explore, yolo, wild, surprise me, idk, don't know what to do
+  - "active" → sporty, exercise, hiking, biking, swimming, physical, energetic, outdoors, workout, moving
+  - "creative" → art, crafts, painting, music, cooking, pottery, DIY, make something
+  - "social" → friends, hangout, party, games, fun, group activity, night out, people, together, squad
+- effortLevel: "low" if easy/lazy/chill/no effort/relaxed, "high" if active/intense/workout/sporty/physical, "medium" otherwise. null if not clear.
+- indoorOutdoor: "indoor" if inside/AC/out of heat/somewhere cool/air conditioned, "outdoor" if outside/nature/fresh air/open/at a park. null if not mentioned.
 - groupSize: total number of people including the person asking. null if not mentioned.
 
 Include multiple vibes when appropriate. Return [] for vibes if none clearly fit.
@@ -54,7 +55,16 @@ Input: "Something fun in Austin tonight, 6 people"
 Output: {"budget":null,"distanceMinutes":25,"vibes":["social"],"effortLevel":null,"indoorOutdoor":null,"groupSize":6}
 
 Input: "Don't want to drive far, something low key, just me and one friend"
-Output: {"budget":null,"distanceMinutes":20,"vibes":["chill"],"effortLevel":"low","indoorOutdoor":null,"groupSize":2}`;
+Output: {"budget":null,"distanceMinutes":20,"vibes":["chill"],"effortLevel":"low","indoorOutdoor":null,"groupSize":2}
+
+Input: "Idk what to do, not trying to drive, 4 of us, cheap"
+Output: {"budget":10,"distanceMinutes":10,"vibes":["random-adventure","social"],"effortLevel":null,"indoorOutdoor":null,"groupSize":4}
+
+Input: "Swimming or hiking near lake travis"
+Output: {"budget":null,"distanceMinutes":25,"vibes":["active"],"effortLevel":"medium","indoorOutdoor":"outdoor","groupSize":null}
+
+Input: "Something outside not too far, don't want to spend much"
+Output: {"budget":15,"distanceMinutes":20,"vibes":["active"],"effortLevel":null,"indoorOutdoor":"outdoor","groupSize":null}`;
 
 export const handler: Handler = async (event) => {
   if (event.httpMethod !== 'POST') {
