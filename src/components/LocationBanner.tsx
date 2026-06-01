@@ -20,10 +20,22 @@ export function LocationBanner({ geo, onAllow }: Props) {
     );
   }
 
-  // Nothing useful to show for denied / unavailable
-  if (geo.status === 'denied' || geo.status === 'unavailable') {
-    return null;
+  // Location was blocked — explain how to re-enable
+  if (geo.status === 'denied') {
+    return (
+      <div className="max-w-md mx-auto px-4 pt-3">
+        <div className="flex items-center gap-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/40 rounded-xl px-3.5 py-2.5">
+          <span className="text-base leading-none">⚠️</span>
+          <p className="text-xs text-amber-700 dark:text-amber-300 leading-snug">
+            <span className="font-semibold">Location blocked.</span> Activities show area names instead of drive times.
+            To enable: tap the lock icon in your browser address bar → allow location.
+          </p>
+        </div>
+      </div>
+    );
   }
+
+  if (geo.status === 'unavailable') return null;
 
   // idle or loading — prompt the user
   return (

@@ -1,6 +1,6 @@
 import { RankedActivity } from '../lib/types';
 import { WarningBadge } from './WarningBadge';
-import { getActivityDriveMinutes, formatDriveTime } from '../lib/distance';
+import { getActivityDriveMinutes, formatDriveTime, getActivityAreaLabel } from '../lib/distance';
 
 interface Props {
   ranked: RankedActivity;
@@ -46,12 +46,17 @@ const INDOOR_LABEL: Record<string, string> = {
 export function ActivityCard({ ranked, rank, userLocation, onVote, voted, voteCount }: Props) {
   const { activity, rankingReason } = ranked;
 
-  // Use real GPS distance when available, otherwise fall back to generic label
+  // Distance label priority:
+  // 1. Real GPS drive time (most accurate)
+  // 2. Geographic area name for fixed-location spots (honest — doesn't pretend to know drive time)
+  // 3. Generic category label for activities with no fixed location (bowling alley, etc.)
   const distanceLabel = (() => {
     if (userLocation) {
       const mins = getActivityDriveMinutes(activity.id, userLocation.lat, userLocation.lon);
       if (mins !== null) return formatDriveTime(mins);
     }
+    const area = getActivityAreaLabel(activity.id);
+    if (area) return area;
     return DISTANCE_LABELS[activity.distanceType] ?? activity.distanceType;
   })();
 

@@ -1,6 +1,7 @@
 import { activities } from '../data/activities';
 import { Activity, EffortLevel, IndoorOutdoor, ParsedPrompt, RankedActivity, Vibe, GroupConstraint, ImprovedPlan } from './types';
 import { getActivityDriveMinutes } from './distance';
+import { ACTIVITY_LOCATIONS } from '../data/activity-locations';
 
 export type UserLocation = { lat: number; lon: number };
 
@@ -229,12 +230,26 @@ const DISTANCE_MINUTES: Record<string, number> = {
 };
 
 function resolveActivityMinutes(activity: Activity, userLocation?: UserLocation): number {
-  // Use real GPS distance when available
+  // Use real GPS distance when available — most accurate
   if (userLocation) {
     const real = getActivityDriveMinutes(activity.id, userLocation.lat, userLocation.lon);
     if (real !== null) return real;
   }
-  // Fall back to the generic category estimate
+
+  // No GPS available.
+  // Fixed-location activities (in ACTIVITY_LOCATIONS) exist at a SPECIFIC place on the map.
+  // Without GPS we don't know if that place is near the user, so we're conservative:
+  // treat 'walking'/'nearby' as short-drive (25 min) and 'short-drive' as long (60 min).
+  // Generic activities (NOT in ACTIVITY_LOCATIONS) truly can be found anywhere near the
+  // user, so their stored distanceType is a reasonable estimate — keep it as-is.
+  const hasFixedLocation = activity.id in ACTIVITY_LOCATIONS;
+  if (hasFixedLocation) {
+    const stored = DISTANCE_MINUTES[activity.distanceType] ?? 25;
+    if (stored <= 10) return 25;  // was 'nearby'  → treat as short-drive
+    if (stored <= 25) return 55;  // was 'short-drive' → treat as long drive
+    return stored;                // road-trip stays road-trip
+  }
+
   return DISTANCE_MINUTES[activity.distanceType] ?? 25;
 }
 

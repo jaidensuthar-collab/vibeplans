@@ -17,23 +17,14 @@ export function haversineDistanceMiles(
 
 /**
  * Converts straight-line (Haversine) miles to estimated drive-time in minutes.
- *
- * Austin road distances typically run 1.3–1.6× the straight-line distance, plus
- * traffic delays. These multipliers are calibrated against real Google Maps times
- * from multiple Austin-area starting points (Steiner Ranch, downtown, South Austin).
- *
- *   ≤ 2 mi  → local streets, ~12 mph  → × 5.0
- *   ≤ 8 mi  → mixed city,   ~19 mph  → × 3.2
- *   ≤ 20 mi → city + hwy,   ~24 mph  → × 2.5
- *   ≤ 60 mi → highway,      ~40 mph  → × 1.5
- *   > 60 mi → open highway, ~55 mph  → × 1.1
+ * Calibrated against real Google Maps times across multiple Austin-area starting points.
  */
 export function milesToDriveMinutes(miles: number): number {
-  if (miles <= 2)  return Math.round(miles * 5.0);
-  if (miles <= 8)  return Math.round(miles * 3.2);
-  if (miles <= 20) return Math.round(miles * 2.5);
-  if (miles <= 60) return Math.round(miles * 1.5);
-  return Math.round(miles * 1.1);
+  if (miles <= 2)  return Math.round(miles * 5.0);  // local streets ~12 mph
+  if (miles <= 8)  return Math.round(miles * 3.2);  // mixed city   ~19 mph
+  if (miles <= 20) return Math.round(miles * 2.5);  // city + hwy   ~24 mph
+  if (miles <= 60) return Math.round(miles * 1.5);  // highway      ~40 mph
+  return Math.round(miles * 1.1);                   // open highway ~55 mph
 }
 
 /**
@@ -58,4 +49,44 @@ export function formatDriveTime(minutes: number): string {
   const hrs  = Math.floor(minutes / 60);
   const mins = minutes % 60;
   return mins === 0 ? `~${hrs} hr drive` : `~${hrs} hr ${mins} min drive`;
+}
+
+/**
+ * Returns a human-readable geographic area name for a fixed-location activity,
+ * based on its GPS coordinates. Used when GPS is unavailable so we show an
+ * honest location label instead of a fake "5-15 min away" distance estimate.
+ * Returns null for generic activities without fixed coordinates.
+ */
+export function getActivityAreaLabel(activityId: string): string | null {
+  const loc = ACTIVITY_LOCATIONS[activityId];
+  if (!loc) return null;
+
+  const { lat, lon } = loc;
+
+  // Far Texas / out-of-Austin day trips
+  if (lon < -100)                               return 'Far West Texas';
+  if (lon < -99.5)                              return 'West Texas';
+  if (lon < -99)                                return 'Hill Country (far)';
+  if (lat < 29.5)                               return 'South Texas';
+  if (lon < -98.8 || lat > 31.5)               return 'Hill Country day trip';
+  if (lon < -98.5)                              return 'Hill Country';
+  if (lat < 29.75)                              return 'San Marcos / NB area';
+
+  // San Antonio (south of Austin metro)
+  if (lat < 29.55)                              return 'San Antonio area';
+
+  // Austin metro geographic zones
+  if (lon < -97.95 && lat > 30.33)             return 'Lake Travis area';
+  if (lon < -97.95)                             return 'Far West Austin';
+  if (lon < -97.85 && lat > 30.28)             return 'Steiner Ranch / Lake Austin';
+  if (lon < -97.85)                             return 'Southwest Austin';
+  if (lat > 30.55)                              return 'Georgetown / Round Rock';
+  if (lat > 30.45)                              return 'North Austin / Pflugerville';
+  if (lat > 30.32 && lon > -97.80)             return 'North Austin';
+  if (lat > 30.32)                              return 'Northwest Austin';
+  if (lat < 30.15)                              return 'South Austin (far)';
+  if (lat < 30.23)                              return 'South Austin';
+  if (lon > -97.70)                             return 'East Austin';
+  if (lon < -97.76 && lat > 30.26)             return 'West / Central Austin';
+  return 'Downtown Austin';
 }
