@@ -387,7 +387,20 @@ export function rankActivities(
     };
   });
 
-  return scored
+  // Hard distance filter: when the user specified a limit, drop any activity that is
+  // more than 2× over it. This prevents high vibe-match scores from surfacing
+  // something physically way out of range. If filtering leaves too few results,
+  // fall back to the full scored list so we always return something.
+  let pool = scored;
+  if (prompt.distanceMinutes !== undefined) {
+    const hardLimit = prompt.distanceMinutes * 2;
+    const filtered = scored.filter(
+      ({ activity: a }) => resolveActivityMinutes(a, userLocation) <= hardLimit
+    );
+    if (filtered.length >= Math.min(topN, 3)) pool = filtered;
+  }
+
+  return pool
     .sort((a, b) => b.score - a.score)
     .slice(0, topN);
 }

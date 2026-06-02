@@ -1,6 +1,8 @@
+import { useState } from 'react';
 import { RankedActivity } from '../lib/types';
 import { WarningBadge } from './WarningBadge';
 import { getActivityDriveMinutes, formatDriveTime, getActivityAreaLabel } from '../lib/distance';
+import { ActivityDetailSheet } from './ActivityDetailSheet';
 
 interface Props {
   ranked: RankedActivity;
@@ -45,6 +47,7 @@ const INDOOR_LABEL: Record<string, string> = {
 
 export function ActivityCard({ ranked, rank, userLocation, onVote, voted, voteCount }: Props) {
   const { activity, rankingReason } = ranked;
+  const [showDetail, setShowDetail] = useState(false);
 
   // Distance label priority:
   // 1. Real GPS drive time (most accurate)
@@ -150,18 +153,35 @@ export function ActivityCard({ ranked, rank, userLocation, onVote, voted, voteCo
         </div>
       )}
 
-      {/* ── Vote button ── */}
-      {onVote && (
+      {/* ── Action row ── */}
+      <div className={`flex gap-2 mt-1 ${onVote ? '' : ''}`}>
         <button
-          onClick={onVote}
-          className={`w-full mt-1 py-2 rounded-xl text-sm font-semibold transition-colors ${
-            voted
-              ? 'bg-indigo-600 text-white'
-              : 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-100 hover:bg-indigo-50 dark:hover:bg-gray-600'
-          }`}
+          onClick={() => setShowDetail(true)}
+          className="flex-1 py-2 rounded-xl text-sm font-semibold bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-indigo-50 dark:hover:bg-gray-600 transition-colors"
         >
-          {voted ? `Voted ✓ (${voteCount ?? 0})` : `Vote${voteCount ? ` (${voteCount})` : ''}`}
+          More info →
         </button>
+        {onVote && (
+          <button
+            onClick={onVote}
+            className={`flex-1 py-2 rounded-xl text-sm font-semibold transition-colors ${
+              voted
+                ? 'bg-indigo-600 text-white'
+                : 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-100 hover:bg-indigo-50 dark:hover:bg-gray-600'
+            }`}
+          >
+            {voted ? `Voted ✓ (${voteCount ?? 0})` : `Vote${voteCount ? ` (${voteCount})` : ''}`}
+          </button>
+        )}
+      </div>
+
+      {/* ── Detail sheet ── */}
+      {showDetail && (
+        <ActivityDetailSheet
+          activity={activity}
+          userLocation={userLocation}
+          onClose={() => setShowDetail(false)}
+        />
       )}
     </div>
   );
