@@ -20,16 +20,36 @@ export function LocationBanner({ geo, onAllow }: Props) {
     );
   }
 
-  // Location was blocked — explain how to re-enable
+  // Location was blocked — show fix steps + retry button
   if (geo.status === 'denied') {
     return (
       <div className="max-w-md mx-auto px-4 pt-3">
-        <div className="flex items-center gap-2 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/40 rounded-xl px-3.5 py-2.5">
-          <span className="text-base leading-none">⚠️</span>
-          <p className="text-xs text-amber-700 dark:text-amber-300 leading-snug">
-            <span className="font-semibold">Location blocked.</span> Activities show area names instead of drive times.
-            To enable: tap the lock icon in your browser address bar → allow location.
-          </p>
+        <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/40 rounded-xl px-3.5 py-3 space-y-2">
+          <div className="flex items-start gap-2">
+            <span className="text-base leading-none mt-0.5">⚠️</span>
+            <div>
+              <p className="text-xs font-semibold text-amber-800 dark:text-amber-200">Location blocked</p>
+              <p className="text-xs text-amber-700 dark:text-amber-300 leading-snug mt-0.5">
+                Activities show area names instead of real drive times.
+              </p>
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={onAllow}
+              className="flex-1 text-xs font-semibold bg-amber-600 hover:bg-amber-700 text-white px-3 py-1.5 rounded-lg transition-colors"
+            >
+              Try again
+            </button>
+            <a
+              href="x-apple.systempreferences:com.apple.preference.security?Privacy_LocationServices"
+              className="hidden"
+              aria-hidden="true"
+            />
+            <span className="flex-1 text-center text-xs text-amber-700 dark:text-amber-300 py-1.5 leading-snug">
+              Or: 🔒 address bar → Location → Allow → refresh
+            </span>
+          </div>
         </div>
       </div>
     );
