@@ -76,7 +76,10 @@ const DISTANCE_KEYWORDS: Record<string, number> = {
   '25 min': 25, '30 min': 30, '45 min': 45, '1 hour': 60,
   // Descriptive phrases
   'not far': 15, 'not too far': 20, 'not that far': 20,
-  'within austin': 25, 'in austin': 25, 'around here': 15, 'around town': 20,
+  // Austin metro / destination location names → generous limit so downtown activities aren't filtered out
+  downtown: 40, 'downtown austin': 40, '6th street': 40, 'east austin': 40,
+  'south congress': 40, 'rainey street': 40, 'the domain': 40,
+  'within austin': 40, 'in austin': 40, 'around here': 15, 'around town': 30,
   // "don't want to drive" / "stay close" phrases
   "don't want to drive": 10, 'dont want to drive': 10, 'not trying to drive': 10,
   "don't want to go far": 15, 'dont want to go far': 15,
