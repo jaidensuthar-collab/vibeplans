@@ -420,6 +420,7 @@ function calcLocationAreaScore(activity: Activity, locOverride: LocationOverride
   }
 
   // Activity has GPS coords — check how close it is to the requested area
+  if (!locOverride.centerLat || !locOverride.centerLon) return 10; // has GPS but no area center defined
   const miles = haversineDistanceMiles(loc.lat, loc.lon, locOverride.centerLat, locOverride.centerLon);
   const radius = locOverride.radiusMiles ?? 5;
 
@@ -486,16 +487,16 @@ export function rankActivities(
   // more than 2× over it. This prevents high vibe-match scores from surfacing
   // something physically way out of range. If filtering leaves too few results,
   // fall back to the full scored list so we always return something.
-  let pool = scored;
+  let resultPool = scored;
   if (prompt.distanceMinutes !== undefined) {
     const hardLimit = prompt.distanceMinutes * 2;
-    const filtered = scored.filter(
+    const hardFiltered = scored.filter(
       ({ activity: a }) => resolveActivityMinutes(a, userLocation) <= hardLimit
     );
-    if (filtered.length >= Math.min(topN, 3)) pool = filtered;
+    if (hardFiltered.length >= Math.min(topN, 3)) resultPool = hardFiltered;
   }
 
-  return pool
+  return resultPool
     .sort((a, b) => b.score - a.score)
     .slice(0, topN);
 }

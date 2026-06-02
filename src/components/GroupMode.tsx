@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
-import { GroupConstraint, ImprovedPlan } from '../lib/types';
+import { GroupConstraint, ImprovedPlan, Vote } from '../lib/types';
 import { parsePromptAI, rankWithConstraints, generateImprovedPlan, UserLocation } from '../lib/mockPlanner';
 import { apiCreateGroup, apiGetGroup, apiUpdateGroup, StoredGroup } from '../lib/groupApi';
-import { getVoteCounts, getWinningActivityId } from '../lib/groupUtils';
 import { RankedActivity } from '../lib/types';
 import { VotePanel } from './VotePanel';
 import { ImprovedPlanCard } from './ImprovedPlanCard';
@@ -174,7 +173,12 @@ export function GroupMode({ userLocation }: Props) {
 
   // ── derived ──────────────────────────────────────────────────────────────────
 
-  const voteCounts = serverGroup ? getVoteCounts(serverGroup as Parameters<typeof getVoteCounts>[0]) : {};
+  const voteCounts = serverGroup
+    ? serverGroup.votes.reduce<Record<string, number>>((acc, v: Vote) => {
+        acc[v.activityId] = (acc[v.activityId] ?? 0) + 1;
+        return acc;
+      }, {})
+    : {};
   const winningId = serverGroup?.winningActivityId;
   const memberCount = serverGroup?.constraints.length ?? 0;
   const voteCount = serverGroup?.votes.length ?? 0;
