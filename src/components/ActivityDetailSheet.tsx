@@ -7,6 +7,8 @@ import { WarningBadge } from './WarningBadge';
 interface Props {
   activity: Activity;
   userLocation?: { lat: number; lon: number };
+  /** Real routing drive times from OSRM (overrides Haversine when present) */
+  driveTimes?: Record<string, number>;
   onClose: () => void;
 }
 
@@ -42,7 +44,7 @@ const INDOOR_LABEL: Record<string, string> = {
   indoor: 'Indoor', outdoor: 'Outdoor', both: 'Indoor / Outdoor',
 };
 
-export function ActivityDetailSheet({ activity, userLocation, onClose }: Props) {
+export function ActivityDetailSheet({ activity, userLocation, driveTimes, onClose }: Props) {
   // Lock body scroll while sheet is open
   useEffect(() => {
     const prev = document.body.style.overflow;
@@ -60,6 +62,8 @@ export function ActivityDetailSheet({ activity, userLocation, onClose }: Props) 
   const loc = ACTIVITY_LOCATIONS[activity.id];
 
   const distanceLabel = (() => {
+    if (driveTimes && driveTimes[activity.id] !== undefined)
+      return formatDriveTime(driveTimes[activity.id]);
     if (userLocation) {
       const mins = getActivityDriveMinutes(activity.id, userLocation.lat, userLocation.lon);
       if (mins !== null) return formatDriveTime(mins);

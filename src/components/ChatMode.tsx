@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { ParsedPrompt, RankedActivity } from '../lib/types';
 import { parsePromptAI, rankActivities, UserLocation } from '../lib/mockPlanner';
+import { fetchDriveTimes } from '../lib/osrm';
 import { ActivityCard } from './ActivityCard';
 import { EmptyState } from './EmptyState';
 
@@ -71,6 +72,8 @@ export function ChatMode({ userLocation }: Props) {
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  /** Real road-routing times from OSRM — loaded async after results appear */
+  const [driveTimes, setDriveTimes] = useState<Record<string, number>>({});
 
   async function handleSubmit() {
     const trimmed = input.trim();
@@ -83,6 +86,7 @@ export function ChatMode({ userLocation }: Props) {
       return;
     }
     setError('');
+    setDriveTimes({}); // reset real times on new search
     setLoading(true);
     try {
       const parsedPrompt = await parsePromptAI(trimmed);
@@ -90,6 +94,18 @@ export function ChatMode({ userLocation }: Props) {
       setParsed(parsedPrompt);
       setResults(ranked);
       setSubmitted(true);
+
+      // After showing initial results, fetch exact road-routing times from OSRM
+      // (uses real roads, not straight-line). Updates distance labels silently.
+      if (userLocation) {
+        fetchDriveTimes(
+          userLocation.lat,
+          userLocation.lon,
+          ranked.map(r => r.activity.id)
+        ).then(times => {
+          if (Object.keys(times).length > 0) setDriveTimes(times);
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -163,7 +179,13 @@ export function ChatMode({ userLocation }: Props) {
         <section className="space-y-4">
           <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100">Top Ideas</h3>
           {results.map((r, i) => (
-            <ActivityCard key={r.activity.id} ranked={r} rank={i + 1} userLocation={userLocation} />
+            <ActivityCard
+              key={r.activity.id}
+              ranked={r}
+              rank={i + 1}
+              userLocation={userLocation}
+              driveTimes={driveTimes}
+            />
           ))}
           <p className="text-xs text-center text-gray-400 dark:text-gray-600 pb-4">
             Powered by GPT-4o-mini

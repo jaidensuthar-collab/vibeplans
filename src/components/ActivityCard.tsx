@@ -8,6 +8,8 @@ interface Props {
   ranked: RankedActivity;
   rank: number;
   userLocation?: { lat: number; lon: number };
+  /** Real routing drive times from OSRM (overrides Haversine when present) */
+  driveTimes?: Record<string, number>;
   onVote?: () => void;
   voted?: boolean;
   voteCount?: number;
@@ -45,15 +47,18 @@ const INDOOR_LABEL: Record<string, string> = {
   indoor: 'Indoor', outdoor: 'Outdoor', both: 'Indoor / Outdoor',
 };
 
-export function ActivityCard({ ranked, rank, userLocation, onVote, voted, voteCount }: Props) {
+export function ActivityCard({ ranked, rank, userLocation, driveTimes, onVote, voted, voteCount }: Props) {
   const { activity, rankingReason } = ranked;
   const [showDetail, setShowDetail] = useState(false);
 
   // Distance label priority:
-  // 1. Real GPS drive time (most accurate)
-  // 2. Geographic area name for fixed-location spots (honest — doesn't pretend to know drive time)
-  // 3. Generic category label for activities with no fixed location (bowling alley, etc.)
+  // 1. Real OSRM road-routing time (most accurate — actual roads, not straight line)
+  // 2. Haversine GPS estimate (good approximation when OSRM hasn't loaded yet)
+  // 3. Geographic area name for fixed-location spots (no GPS available)
+  // 4. Generic category label for activities with no fixed location
   const distanceLabel = (() => {
+    if (driveTimes && driveTimes[activity.id] !== undefined)
+      return formatDriveTime(driveTimes[activity.id]);
     if (userLocation) {
       const mins = getActivityDriveMinutes(activity.id, userLocation.lat, userLocation.lon);
       if (mins !== null) return formatDriveTime(mins);
@@ -180,6 +185,7 @@ export function ActivityCard({ ranked, rank, userLocation, onVote, voted, voteCo
         <ActivityDetailSheet
           activity={activity}
           userLocation={userLocation}
+          driveTimes={driveTimes}
           onClose={() => setShowDetail(false)}
         />
       )}
