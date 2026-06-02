@@ -360,12 +360,45 @@ function calcWarningPenalty(activity: Activity): number {
 
 function calcEffortScore(activity: Activity, effortLevel?: EffortLevel): number {
   if (effortLevel === undefined) return 0; // no preference stated
-  if (activity.effortLevel === effortLevel) return 22;       // exact match
+  if (activity.effortLevel === effortLevel) return 35;       // exact match
   // Adjacent levels are ok; opposite is penalized
   const levels: EffortLevel[] = ['low', 'medium', 'high'];
   const gap = Math.abs(levels.indexOf(activity.effortLevel) - levels.indexOf(effortLevel));
-  if (gap === 1) return 4;   // adjacent (e.g. asked low, got medium)
-  return -22;                // opposite (asked low, got high)
+  if (gap === 1) return 6;   // adjacent (e.g. asked low, got medium)
+  return -35;                // opposite (asked low, got high)
+}
+
+/**
+ * When the user didn't explicitly state an effort level but their *vibe* implies
+ * one ("active" → high effort expected, "chill" → low effort expected), apply a
+ * bonus/penalty so that, e.g., an "active" query doesn't surface lazy walks above
+ * rock climbing just because both match the "active" vibe tag.
+ *
+ * Only fires when effortLevel is undefined — if the user DID state an effort level,
+ * calcEffortScore already handles it with higher weights.
+ */
+function calcVibeImpliedEffortBonus(activity: Activity, vibes: Vibe[], effortLevel?: EffortLevel): number {
+  if (effortLevel !== undefined) return 0; // explicit effort already handled
+
+  const wantsActive = vibes.includes('active');
+  const wantsChill  = vibes.includes('chill');
+
+  // Conflicting signals (someone said both "active" and "chill") → neutral
+  if (wantsActive && wantsChill) return 0;
+
+  if (wantsActive) {
+    if (activity.effortLevel === 'high')   return 20;  // perfect — gets moving
+    if (activity.effortLevel === 'medium') return 5;   // acceptable
+    if (activity.effortLevel === 'low')    return -20; // lazy pick for an active ask
+  }
+
+  if (wantsChill) {
+    if (activity.effortLevel === 'low')    return 20;  // perfect — easy & relaxed
+    if (activity.effortLevel === 'medium') return 0;   // acceptable
+    if (activity.effortLevel === 'high')   return -20; // intense pick for a chill ask
+  }
+
+  return 0;
 }
 
 function calcIndoorOutdoorScore(activity: Activity, indoorOutdoor?: IndoorOutdoor): number {
@@ -447,6 +480,7 @@ export function rankActivities(
       calcDistanceScore(activity, prompt.distanceMinutes, userLocation) +
       calcVibeScore(activity, prompt.vibes) +
       calcEffortScore(activity, prompt.effortLevel) +
+      calcVibeImpliedEffortBonus(activity, prompt.vibes, prompt.effortLevel) +
       calcIndoorOutdoorScore(activity, prompt.indoorOutdoor) +
       calcKeywordBoost(activity, lowerPrompt) +
       calcLocationAreaScore(activity, locOverride) +

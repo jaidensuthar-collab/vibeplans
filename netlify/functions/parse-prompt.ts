@@ -32,7 +32,11 @@ Field meanings:
   - "active" → sporty, exercise, hiking, biking, swimming, physical, energetic, outdoors, workout, moving
   - "creative" → art, crafts, painting, music, cooking, pottery, DIY, make something
   - "social" → friends, hangout, party, games, fun, group activity, night out, people, together, squad
-- effortLevel: "low" if easy/lazy/chill/no effort/relaxed, "high" if active/intense/workout/sporty/physical, "medium" otherwise. null if not clear.
+- effortLevel: Physical exertion level expected.
+  - "low": easy/lazy/chill/no effort/relaxed/mellow/lowkey/lounge/take it easy/nothing intense
+  - "high": active/intense/workout/sporty/physical/energetic/get moving/sweat/exercise/athletic/hiking/biking/swimming/running/climbing/outdoor adventure
+  - "medium": moderate/balanced/something in between/not too hard not too chill
+  - null ONLY if genuinely no effort signal in the message. When "active" vibe is present, default to "high" not null.
 - indoorOutdoor: "indoor" if inside/AC/out of heat/somewhere cool/air conditioned, "outdoor" if outside/nature/fresh air/open/at a park. null if not mentioned.
 - groupSize: total number of people including the person asking. null if not mentioned.
 
@@ -70,7 +74,19 @@ Input: "downtown austin 3 ppl 20$ each"
 Output: {"budget":20,"distanceMinutes":40,"vibes":["social"],"effortLevel":null,"indoorOutdoor":null,"groupSize":3}
 
 Input: "Something on 6th street, 4 of us, $30 budget"
-Output: {"budget":30,"distanceMinutes":40,"vibes":["social"],"effortLevel":null,"indoorOutdoor":null,"groupSize":4}`;
+Output: {"budget":30,"distanceMinutes":40,"vibes":["social"],"effortLevel":null,"indoorOutdoor":null,"groupSize":4}
+
+Input: "We want something active, get moving, maybe hike or bike"
+Output: {"budget":null,"distanceMinutes":null,"vibes":["active"],"effortLevel":"high","indoorOutdoor":"outdoor","groupSize":null}
+
+Input: "Chill day, lazy vibes, nothing that requires too much energy"
+Output: {"budget":null,"distanceMinutes":null,"vibes":["chill"],"effortLevel":"low","indoorOutdoor":null,"groupSize":null}
+
+Input: "Active outdoor stuff, we want to actually do something physical"
+Output: {"budget":null,"distanceMinutes":null,"vibes":["active"],"effortLevel":"high","indoorOutdoor":"outdoor","groupSize":null}
+
+Input: "Something fun but not super intense, medium energy"
+Output: {"budget":null,"distanceMinutes":null,"vibes":["social"],"effortLevel":"medium","indoorOutdoor":null,"groupSize":null}`;
 
 export const handler: Handler = async (event) => {
   if (event.httpMethod !== 'POST') {
