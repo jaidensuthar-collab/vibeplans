@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { Activity } from '../lib/types';
 import { ACTIVITY_LOCATIONS } from '../data/activity-locations';
+import { ACTIVITY_VENUE_DETAILS } from '../data/activity-details';
 import { getActivityDriveMinutes, formatDriveTime, getActivityAreaLabel } from '../lib/distance';
 import { WarningBadge } from './WarningBadge';
 
@@ -60,6 +61,7 @@ export function ActivityDetailSheet({ activity, userLocation, driveTimes, onClos
   }, [onClose]);
 
   const loc = ACTIVITY_LOCATIONS[activity.id];
+  const venueInfo = ACTIVITY_VENUE_DETAILS[activity.id];
 
   const distanceLabel = (() => {
     if (driveTimes && driveTimes[activity.id] !== undefined)
@@ -155,6 +157,66 @@ export function ActivityDetailSheet({ activity, userLocation, driveTimes, onClos
               </p>
             )}
           </section>
+
+          {/* ── Venue info (address, hours, phone) ── */}
+          {venueInfo && (
+            <section className="rounded-2xl bg-gray-50 dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700 overflow-hidden">
+              {venueInfo.address && (
+                <div className="flex items-start gap-3 px-4 py-3">
+                  <span className="text-base mt-0.5">📍</span>
+                  <div>
+                    <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Address</p>
+                    <p className="text-sm text-gray-800 dark:text-gray-100 leading-snug">{venueInfo.address}</p>
+                  </div>
+                </div>
+              )}
+              {venueInfo.hours && (
+                <div className="flex items-start gap-3 px-4 py-3">
+                  <span className="text-base mt-0.5">🕐</span>
+                  <div>
+                    <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Hours</p>
+                    <p className="text-sm text-gray-800 dark:text-gray-100 leading-snug">{venueInfo.hours}</p>
+                  </div>
+                </div>
+              )}
+              {venueInfo.admission && (
+                <div className="flex items-start gap-3 px-4 py-3">
+                  <span className="text-base mt-0.5">🎟</span>
+                  <div>
+                    <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Admission</p>
+                    <p className="text-sm text-gray-800 dark:text-gray-100 leading-snug">{venueInfo.admission}</p>
+                  </div>
+                </div>
+              )}
+              {venueInfo.phone && (
+                <div className="flex items-start gap-3 px-4 py-3">
+                  <span className="text-base mt-0.5">📞</span>
+                  <div>
+                    <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Phone</p>
+                    <a href={`tel:${venueInfo.phone}`} className="text-sm text-indigo-600 dark:text-indigo-400 font-medium">
+                      {venueInfo.phone}
+                    </a>
+                  </div>
+                </div>
+              )}
+              {venueInfo.website && (
+                <div className="flex items-start gap-3 px-4 py-3">
+                  <span className="text-base mt-0.5">🌐</span>
+                  <div>
+                    <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-0.5">Website</p>
+                    <a
+                      href={venueInfo.website.startsWith('http') ? venueInfo.website : `https://${venueInfo.website}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm text-indigo-600 dark:text-indigo-400 font-medium break-all"
+                    >
+                      {venueInfo.website}
+                    </a>
+                  </div>
+                </div>
+              )}
+            </section>
+          )}
 
           {/* ── Detail chips ── */}
           <div className="grid grid-cols-2 gap-2 text-xs">
