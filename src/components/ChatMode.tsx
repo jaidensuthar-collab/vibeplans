@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { ParsedPrompt, RankedActivity } from '../lib/types';
-import { parsePromptAI, rankActivities, UserLocation } from '../lib/mockPlanner';
+import { parsePromptAI, rankActivities, UserLocation, detectLocationOverride } from '../lib/mockPlanner';
 import { fetchDriveTimes } from '../lib/osrm';
 import { ActivityCard } from './ActivityCard';
 import { EmptyState } from './EmptyState';
@@ -28,11 +28,15 @@ const VIBE_COLORS: Record<string, string> = {
 
 function ParsedSummary({ p }: { p: ParsedPrompt }) {
   const chips: { label: string; color: string }[] = [];
+  const locOverride = detectLocationOverride(p.rawText);
 
   p.vibes.forEach(v =>
     chips.push({ label: v.replace('-', ' '), color: VIBE_COLORS[v] ?? 'bg-gray-100 text-gray-700' })
   );
-  if (p.distanceMinutes !== undefined)
+  // Show a named location chip when we detected a place name, otherwise show distance filter
+  if (locOverride)
+    chips.push({ label: `📍 ${locOverride.label}`, color: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300' });
+  else if (p.distanceMinutes !== undefined)
     chips.push({ label: `📍 within ${p.distanceMinutes} min`, color: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300' });
   if (p.budget !== undefined)
     chips.push({ label: `💰 under $${p.budget}`, color: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300' });

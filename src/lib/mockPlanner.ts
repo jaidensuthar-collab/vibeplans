@@ -93,6 +93,61 @@ const DISTANCE_KEYWORDS: Record<string, number> = {
   'open to driving': 60, 'down to drive': 60,
 };
 
+// ─────────────── named Austin location overrides ─────────────────────────────
+// These are applied CLIENT-SIDE after the AI result arrives, so GPT can't ignore them.
+// Each entry maps one or more phrases to a distanceMinutes value AND a human-readable
+// label shown in the "I understood" chip instead of "within X min".
+
+export interface LocationOverride {
+  keywords: string[];
+  distanceMinutes: number;
+  label: string;
+}
+
+export const LOCATION_OVERRIDES: LocationOverride[] = [
+  // Downtown / central Austin
+  { keywords: ['downtown austin', 'downtown', '6th street', 'sixth street', 'rainey street', 'rainey st', '2nd street', 'second street', 'congress ave', 'congress avenue', 'west 6th', 'east 6th'], distanceMinutes: 40, label: 'Downtown Austin' },
+  // South Austin
+  { keywords: ['south congress', 'soco', 'south lamar', 'travis heights', 'bouldin', 'st elmo', 'south austin'], distanceMinutes: 40, label: 'South Austin' },
+  // East Austin
+  { keywords: ['east austin', 'east side', 'east atx', 'east 11th', 'mueller'], distanceMinutes: 40, label: 'East Austin' },
+  // North / Domain
+  { keywords: ['the domain', 'domain northside', 'cedar park', 'leander', 'north austin'], distanceMinutes: 35, label: 'North Austin / Domain' },
+  // Round Rock / Georgetown
+  { keywords: ['round rock', 'pflugerville', 'pfluger', 'georgetown'], distanceMinutes: 40, label: 'Round Rock area' },
+  // Barton Springs / Zilker
+  { keywords: ['barton springs', 'barton creek', 'zilker', 'barton hills'], distanceMinutes: 40, label: 'Barton Springs area' },
+  // Lady Bird Lake
+  { keywords: ['lady bird lake', 'town lake', 'lady bird'], distanceMinutes: 40, label: 'Lady Bird Lake' },
+  // Lake Travis / Steiner
+  { keywords: ['lake travis', 'volente', 'lakeway', 'lago vista', 'steiner ranch', 'steiner'], distanceMinutes: 40, label: 'Lake Travis area' },
+  // Buda / Kyle / San Marcos (south of Austin)
+  { keywords: ['buda', 'kyle', 'san marcos', 'wimberley'], distanceMinutes: 50, label: 'South of Austin' },
+  // General "in Austin" phrases
+  { keywords: ['in austin', 'within austin', 'around austin', 'in atx', 'around atx', 'in the city', 'around town'], distanceMinutes: 40, label: 'Austin area' },
+];
+
+/**
+ * Scans rawText for named Austin location phrases and returns the matching override,
+ * or null if no location keyword is found. Checks longest keywords first to avoid
+ * partial matches (e.g. "downtown austin" before "downtown").
+ */
+export function detectLocationOverride(rawText: string): LocationOverride | null {
+  const lower = rawText.toLowerCase();
+  // Flatten all keywords with their parent override, sort longest first
+  const entries: Array<{ kw: string; override: LocationOverride }> = [];
+  for (const override of LOCATION_OVERRIDES) {
+    for (const kw of override.keywords) {
+      entries.push({ kw, override });
+    }
+  }
+  entries.sort((a, b) => b.kw.length - a.kw.length);
+  for (const { kw, override } of entries) {
+    if (lower.includes(kw)) return override;
+  }
+  return null;
+}
+
 // ─────────────── effort level keywords ──────────────────────────────────────
 
 const EFFORT_KEYWORDS: Record<string, EffortLevel> = {
@@ -450,7 +505,7 @@ export async function parsePromptAI(raw: string): Promise<ParsedPrompt> {
     const data = await res.json();
     if (data.error) throw new Error(data.error);
 
-    return {
+    const aiResult: ParsedPrompt = {
       budget: data.budget,
       distanceMinutes: data.distanceMinutes,
       vibes: data.vibes ?? [],
@@ -459,6 +514,16 @@ export async function parsePromptAI(raw: string): Promise<ParsedPrompt> {
       groupSize: data.groupSize,
       rawText: raw,
     };
+
+    // Client-side location override: GPT sometimes ignores instruction for specific
+    // place names ("downtown austin" → 25 instead of 40). Detect named locations in
+    // the raw text and forcibly correct distanceMinutes so ranking is always right.
+    const locOverride = detectLocationOverride(raw);
+    if (locOverride) {
+      aiResult.distanceMinutes = locOverride.distanceMinutes;
+    }
+
+    return aiResult;
   } catch (err) {
     console.warn('AI parse failed, falling back to keyword matching:', err);
     return parsePrompt(raw);
