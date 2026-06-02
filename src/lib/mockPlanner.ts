@@ -1,6 +1,6 @@
 import { activities } from '../data/activities';
 import { Activity, EffortLevel, IndoorOutdoor, ParsedPrompt, RankedActivity, Vibe, GroupConstraint, ImprovedPlan } from './types';
-import { getActivityDriveMinutes } from './distance';
+import { getActivityDriveMinutes, haversineDistanceMiles } from './distance';
 import { ACTIVITY_LOCATIONS } from '../data/activity-locations';
 
 export type UserLocation = { lat: number; lon: number };
@@ -102,28 +102,33 @@ export interface LocationOverride {
   keywords: string[];
   distanceMinutes: number;
   label: string;
+  /** Approximate geographic center of the area (used to boost nearby activities) */
+  centerLat?: number;
+  centerLon?: number;
+  /** Miles radius that counts as "in this area" for the area bonus */
+  radiusMiles?: number;
 }
 
 export const LOCATION_OVERRIDES: LocationOverride[] = [
   // Downtown / central Austin
-  { keywords: ['downtown austin', 'downtown', '6th street', 'sixth street', 'rainey street', 'rainey st', '2nd street', 'second street', 'congress ave', 'congress avenue', 'west 6th', 'east 6th'], distanceMinutes: 40, label: 'Downtown Austin' },
-  // South Austin
-  { keywords: ['south congress', 'soco', 'south lamar', 'travis heights', 'bouldin', 'st elmo', 'south austin'], distanceMinutes: 40, label: 'South Austin' },
+  { keywords: ['downtown austin', 'downtown', '6th street', 'sixth street', 'rainey street', 'rainey st', '2nd street', 'second street', 'congress ave', 'congress avenue', 'west 6th', 'east 6th'], distanceMinutes: 40, label: 'Downtown Austin', centerLat: 30.2672, centerLon: -97.7431, radiusMiles: 4 },
+  // South Austin / SoCo
+  { keywords: ['south congress', 'soco', 'south lamar', 'travis heights', 'bouldin', 'st elmo', 'south austin'], distanceMinutes: 40, label: 'South Austin', centerLat: 30.2426, centerLon: -97.7648, radiusMiles: 4 },
   // East Austin
-  { keywords: ['east austin', 'east side', 'east atx', 'east 11th', 'mueller'], distanceMinutes: 40, label: 'East Austin' },
+  { keywords: ['east austin', 'east side', 'east atx', 'east 11th', 'mueller'], distanceMinutes: 40, label: 'East Austin', centerLat: 30.2634, centerLon: -97.7202, radiusMiles: 4 },
   // North / Domain
-  { keywords: ['the domain', 'domain northside', 'cedar park', 'leander', 'north austin'], distanceMinutes: 35, label: 'North Austin / Domain' },
+  { keywords: ['the domain', 'domain northside', 'cedar park', 'leander', 'north austin'], distanceMinutes: 35, label: 'North Austin / Domain', centerLat: 30.4026, centerLon: -97.7167, radiusMiles: 5 },
   // Round Rock / Georgetown
-  { keywords: ['round rock', 'pflugerville', 'pfluger', 'georgetown'], distanceMinutes: 40, label: 'Round Rock area' },
+  { keywords: ['round rock', 'pflugerville', 'pfluger', 'georgetown'], distanceMinutes: 40, label: 'Round Rock area', centerLat: 30.5083, centerLon: -97.6789, radiusMiles: 6 },
   // Barton Springs / Zilker
-  { keywords: ['barton springs', 'barton creek', 'zilker', 'barton hills'], distanceMinutes: 40, label: 'Barton Springs area' },
+  { keywords: ['barton springs', 'barton creek', 'zilker', 'barton hills'], distanceMinutes: 40, label: 'Barton Springs area', centerLat: 30.2614, centerLon: -97.7711, radiusMiles: 3 },
   // Lady Bird Lake
-  { keywords: ['lady bird lake', 'town lake', 'lady bird'], distanceMinutes: 40, label: 'Lady Bird Lake' },
+  { keywords: ['lady bird lake', 'town lake', 'lady bird'], distanceMinutes: 40, label: 'Lady Bird Lake', centerLat: 30.2568, centerLon: -97.7508, radiusMiles: 3 },
   // Lake Travis / Steiner
-  { keywords: ['lake travis', 'volente', 'lakeway', 'lago vista', 'steiner ranch', 'steiner'], distanceMinutes: 40, label: 'Lake Travis area' },
+  { keywords: ['lake travis', 'volente', 'lakeway', 'lago vista', 'steiner ranch', 'steiner'], distanceMinutes: 40, label: 'Lake Travis area', centerLat: 30.4167, centerLon: -97.9000, radiusMiles: 8 },
   // Buda / Kyle / San Marcos (south of Austin)
-  { keywords: ['buda', 'kyle', 'san marcos', 'wimberley'], distanceMinutes: 50, label: 'South of Austin' },
-  // General "in Austin" phrases
+  { keywords: ['buda', 'kyle', 'san marcos', 'wimberley'], distanceMinutes: 50, label: 'South of Austin', centerLat: 30.0880, centerLon: -97.8400, radiusMiles: 10 },
+  // General "in Austin" phrases — no center, don't penalize generic activities
   { keywords: ['in austin', 'within austin', 'around austin', 'in atx', 'around atx', 'in the city', 'around town'], distanceMinutes: 40, label: 'Austin area' },
 ];
 
@@ -393,6 +398,36 @@ function calcKeywordBoost(activity: Activity, lowerPrompt: string): number {
   return boost;
 }
 
+/**
+ * Location area score: when the user named a specific Austin destination,
+ * reward activities whose GPS coordinates are physically IN that area and
+ * penalize generic activities (no fixed location) that could be done anywhere.
+ *
+ * Without this, cheap generic "nearby" activities dominate because they score
+ * +22 distance and +25 budget — beating specific-location activities even when
+ * the user explicitly asked for things at a particular place.
+ */
+function calcLocationAreaScore(activity: Activity, locOverride: LocationOverride | null): number {
+  if (!locOverride || !locOverride.centerLat) return 0; // no named destination → no effect
+
+  const loc = ACTIVITY_LOCATIONS[activity.id];
+
+  if (!loc) {
+    // Generic activity — no fixed location. When user asked for a specific place,
+    // these are probably not what they want. Apply a penalty so area-specific
+    // activities surface above generic ones.
+    return -25;
+  }
+
+  // Activity has GPS coords — check how close it is to the requested area
+  const miles = haversineDistanceMiles(loc.lat, loc.lon, locOverride.centerLat, locOverride.centerLon);
+  const radius = locOverride.radiusMiles ?? 5;
+
+  if (miles <= radius)       return 40;  // right in the area → strong boost
+  if (miles <= radius * 2)   return 15;  // nearby / adjacent → mild boost
+  return -15;                            // fixed location but wrong part of Austin
+}
+
 // ─────────────────────────── rank functions ──────────────────────────────────
 
 export function rankActivities(
@@ -402,6 +437,7 @@ export function rankActivities(
   userLocation?: UserLocation
 ): RankedActivity[] {
   const lowerPrompt = prompt.rawText.toLowerCase();
+  const locOverride = detectLocationOverride(prompt.rawText);
 
   const scored = pool.map(activity => {
     const score =
@@ -412,6 +448,7 @@ export function rankActivities(
       calcEffortScore(activity, prompt.effortLevel) +
       calcIndoorOutdoorScore(activity, prompt.indoorOutdoor) +
       calcKeywordBoost(activity, lowerPrompt) +
+      calcLocationAreaScore(activity, locOverride) +
       calcWarningPenalty(activity) +
       jitter();
 
