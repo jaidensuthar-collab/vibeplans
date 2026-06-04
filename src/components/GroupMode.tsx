@@ -52,7 +52,7 @@ export function GroupMode({ userLocation }: Props) {
 
   // ── helpers ──────────────────────────────────────────────────────────────────
 
-  function buildTopActivities(sg: StoredGroup): RankedActivity[] {
+  async function buildTopActivities(sg: StoredGroup): Promise<RankedActivity[]> {
     return rankWithConstraints(sg.parsedPrompt, sg.constraints, userLocation);
   }
 
@@ -62,7 +62,7 @@ export function GroupMode({ userLocation }: Props) {
     try {
       const latest = await apiGetGroup(serverGroup.code);
       setServerGroup(latest);
-      setTopActivities(buildTopActivities(latest));
+      setTopActivities(await buildTopActivities(latest));
     } catch { /* silent */ } finally {
       setRefreshing(false);
     }
@@ -124,7 +124,7 @@ export function GroupMode({ userLocation }: Props) {
     try {
       const updated = await apiUpdateGroup(serverGroup.code, { constraint });
       setServerGroup(updated);
-      setTopActivities(buildTopActivities(updated));
+      setTopActivities(await buildTopActivities(updated));
       setStep('vote');
     } catch (err) {
       console.error(err);

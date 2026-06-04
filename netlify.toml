@@ -6,6 +6,27 @@
   directory = "netlify/functions"
   node_bundler = "esbuild"
 
+# ── Static asset caching ───────────────────────────────────────────────────────
+# Vite appends a content hash to every JS/CSS filename (e.g. index-abc123.js),
+# so "immutable" is safe: if the file changes, the URL changes too.
+# Browsers cache these files forever instead of re-downloading on every visit,
+# which dramatically cuts bandwidth usage on the Netlify free tier.
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# HTML entry points must never be cached aggressively so deploys land immediately.
+[[headers]]
+  for = "/*.html"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
+[[headers]]
+  for = "/"
+  [headers.values]
+    Cache-Control = "public, max-age=0, must-revalidate"
+
 [[redirects]]
   from = "/*"
   to = "/index.html"

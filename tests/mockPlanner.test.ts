@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { parsePrompt, rankActivities } from '../src/lib/mockPlanner';
+import { activities } from '../src/data/activities';
 
 describe('parsePrompt', () => {
   it('extracts budget from dollar amount', () => {
@@ -22,19 +23,19 @@ describe('parsePrompt', () => {
 
 describe('rankActivities', () => {
   it('returns exactly 3 results', () => {
-    const results = rankActivities({ vibes: [], rawText: 'anything' });
+    const results = rankActivities({ vibes: [], rawText: 'anything' }, activities, 3);
     expect(results).toHaveLength(3);
   });
   it('prefers free/cheap activities when budget is $5', () => {
-    const results = rankActivities({ budget: 5, vibes: [], rawText: 'free stuff' });
+    const results = rankActivities({ budget: 5, vibes: [], rawText: 'free stuff' }, activities);
     expect(results[0].activity.estimatedCostMin).toBeLessThanOrEqual(5);
   });
   it('top result has a rankingReason string', () => {
-    const results = rankActivities({ vibes: ['chill'], rawText: 'chill night' });
+    const results = rankActivities({ vibes: ['chill'], rawText: 'chill night' }, activities);
     expect(results[0].rankingReason).toBeTruthy();
   });
   it('promotes chill-tagged activities when vibe is chill', () => {
-    const results = rankActivities({ vibes: ['chill'], rawText: 'chill vibe' });
+    const results = rankActivities({ vibes: ['chill'], rawText: 'chill vibe' }, activities);
     expect(results[0].activity.vibes).toContain('chill');
   });
 });

@@ -1,4 +1,13 @@
-import { activities } from '../data/activities';
+// activities.ts is lazy-loaded on first ranking call so it lands in its own
+// split chunk and is excluded from the initial JS bundle.
+let _activitiesCache: Activity[] | null = null;
+async function loadActivities(): Promise<Activity[]> {
+  if (!_activitiesCache) {
+    const mod = await import('../data/activities');
+    _activitiesCache = mod.activities;
+  }
+  return _activitiesCache;
+}
 import { Activity, EffortLevel, IndoorOutdoor, ParsedPrompt, RankedActivity, Vibe, GroupConstraint, ImprovedPlan } from './types';
 import { getActivityDriveMinutes, haversineDistanceMiles } from './distance';
 import { ACTIVITY_LOCATIONS } from '../data/activity-locations';
@@ -466,7 +475,7 @@ function calcLocationAreaScore(activity: Activity, locOverride: LocationOverride
 
 export function rankActivities(
   prompt: ParsedPrompt,
-  pool: Activity[] = activities,
+  pool: Activity[],
   topN = 5,
   userLocation?: UserLocation
 ): RankedActivity[] {
@@ -535,11 +544,21 @@ export function rankActivities(
     .slice(0, topN);
 }
 
-export function rankWithConstraints(
+export async function rankActivitiesAsync(
+  prompt: ParsedPrompt,
+  topN = 5,
+  userLocation?: UserLocation
+): Promise<RankedActivity[]> {
+  const pool = await loadActivities();
+  return rankActivities(prompt, pool, topN, userLocation);
+}
+
+export async function rankWithConstraints(
   rawOrParsed: string | ParsedPrompt,
   constraints: GroupConstraint[],
   userLocation?: UserLocation
-): RankedActivity[] {
+): Promise<RankedActivity[]> {
+  const pool = await loadActivities();
   const base = typeof rawOrParsed === 'string' ? parsePrompt(rawOrParsed) : rawOrParsed;
   const budgets = constraints.map(c => c.maxBudget).filter((b): b is number => b !== undefined);
   const distances = constraints.map(c => c.maxDistanceMinutes).filter((d): d is number => d !== undefined);
@@ -550,17 +569,107 @@ export function rankWithConstraints(
       ? Math.min(...distances, base.distanceMinutes ?? Infinity)
       : base.distanceMinutes,
   };
-  return rankActivities(merged, activities, 5, userLocation);
+  return rankActivities(merged, pool, 5, userLocation);
+}
+
+// ─────────────────────────── AI parse cache ──────────────────────────────────
+
+const PARSE_CACHE_PREFIX = 'vp_parse_v1_';
+const PARSE_CACHE_MAX_AGE_MS = 24 * 60 * 60 * 1000; // 24 hours
+const PARSE_CACHE_MAX_ENTRIES = 100;
+
+interface CacheEntry {
+  result: Omit<ParsedPrompt, 'rawText'>;
+  ts: number;
+}
+
+function normalizeCacheKey(raw: string): string {
+  return raw.toLowerCase().trim().replace(/\s+/g, ' ');
+}
+
+function getCachedParse(raw: string): ParsedPrompt | null {
+  try {
+    const key = PARSE_CACHE_PREFIX + normalizeCacheKey(raw);
+    const stored = localStorage.getItem(key);
+    if (!stored) return null;
+    const { result, ts }: CacheEntry = JSON.parse(stored);
+    if (Date.now() - ts > PARSE_CACHE_MAX_AGE_MS) {
+      localStorage.removeItem(key);
+      return null;
+    }
+    return { ...result, rawText: raw };
+  } catch {
+    return null;
+  }
+}
+
+function setCachedParse(raw: string, result: ParsedPrompt): void {
+  try {
+    const key = PARSE_CACHE_PREFIX + normalizeCacheKey(raw);
+    const entry: CacheEntry = {
+      result: {
+        budget: result.budget,
+        distanceMinutes: result.distanceMinutes,
+        vibes: result.vibes,
+        effortLevel: result.effortLevel,
+        indoorOutdoor: result.indoorOutdoor,
+        groupSize: result.groupSize,
+      },
+      ts: Date.now(),
+    };
+    localStorage.setItem(key, JSON.stringify(entry));
+    evictOldCacheEntries();
+  } catch {
+    // ignore — storage quota exceeded or private browsing blocked
+  }
+}
+
+function evictOldCacheEntries(): void {
+  try {
+    const keys = Object.keys(localStorage).filter(k => k.startsWith(PARSE_CACHE_PREFIX));
+    if (keys.length <= PARSE_CACHE_MAX_ENTRIES) return;
+    // Sort by timestamp ascending and remove the oldest ones
+    const entries = keys
+      .map(k => {
+        try {
+          const stored = localStorage.getItem(k);
+          if (!stored) return null;
+          const { ts }: CacheEntry = JSON.parse(stored);
+          return { key: k, ts };
+        } catch {
+          return null;
+        }
+      })
+      .filter((e): e is { key: string; ts: number } => e !== null)
+      .sort((a, b) => a.ts - b.ts);
+    const toRemove = entries.slice(0, entries.length - PARSE_CACHE_MAX_ENTRIES);
+    for (const { key } of toRemove) localStorage.removeItem(key);
+  } catch {
+    // ignore
+  }
 }
 
 // ─────────────────────────── AI-powered parser ───────────────────────────────
 
 /**
  * Sends the user's raw text to the Netlify serverless function which calls
- * GPT-4o-mini to extract structured categories. Falls back to local keyword
- * matching if the function is unavailable or returns an error.
+ * GPT-4o-mini to extract structured categories. Results are cached in
+ * localStorage for 24 h so repeat (or near-identical) prompts never hit the
+ * function twice — this is the main lever for staying inside Netlify's free
+ * function invocation quota.
+ *
+ * Falls back to local keyword matching if the function is unavailable.
  */
 export async function parsePromptAI(raw: string): Promise<ParsedPrompt> {
+  // ── Cache check: same prompt text reuses last result without an API call ──
+  const cached = getCachedParse(raw);
+  if (cached) {
+    // Still apply the location override in case the cached run predates this logic
+    const locOverride = detectLocationOverride(raw);
+    if (locOverride) cached.distanceMinutes = locOverride.distanceMinutes;
+    return cached;
+  }
+
   try {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 9000);
@@ -594,6 +703,9 @@ export async function parsePromptAI(raw: string): Promise<ParsedPrompt> {
     if (locOverride) {
       aiResult.distanceMinutes = locOverride.distanceMinutes;
     }
+
+    // ── Persist to cache so this exact prompt skips the function next time ──
+    setCachedParse(raw, aiResult);
 
     return aiResult;
   } catch (err) {

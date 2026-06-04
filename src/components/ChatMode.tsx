@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { ParsedPrompt, RankedActivity } from '../lib/types';
-import { parsePromptAI, rankActivities, UserLocation, detectLocationOverride } from '../lib/mockPlanner';
+import { parsePromptAI, rankActivitiesAsync, UserLocation, detectLocationOverride } from '../lib/mockPlanner';
 import { fetchDriveTimes } from '../lib/osrm';
 import { ActivityCard } from './ActivityCard';
 import { EmptyState } from './EmptyState';
@@ -94,7 +94,7 @@ export function ChatMode({ userLocation }: Props) {
     setLoading(true);
     try {
       const parsedPrompt = await parsePromptAI(trimmed);
-      const ranked = rankActivities(parsedPrompt, undefined, 5, userLocation);
+      const ranked = await rankActivitiesAsync(parsedPrompt, 5, userLocation);
       setParsed(parsedPrompt);
       setResults(ranked);
       setSubmitted(true);
