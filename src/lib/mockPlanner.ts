@@ -674,7 +674,7 @@ export async function parsePromptAI(raw: string): Promise<ParsedPrompt> {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 9000);
 
-    const res = await fetch('/.netlify/functions/parse-prompt', {
+    const res = await fetch('/api/parse-prompt', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ rawText: raw }),
