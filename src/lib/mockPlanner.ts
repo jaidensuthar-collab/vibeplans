@@ -417,9 +417,19 @@ function calcIndoorOutdoorScore(activity: Activity, indoorOutdoor?: IndoorOutdoo
   return -18;                                               // mismatch
 }
 
-/** Returns a small random jitter to break ties with variety. */
-function jitter(): number {
-  return Math.random() * 6 - 3; // ±3 points
+/**
+ * Deterministic tie-breaker based on the activity's ID string.
+ * Every client will compute the same value for the same activity, so group
+ * members always see an identical ranked list for identical inputs.
+ * (Replaces the old Math.random() jitter that caused per-device divergence.)
+ */
+function deterministicJitter(activityId: string): number {
+  let hash = 0;
+  for (let i = 0; i < activityId.length; i++) {
+    hash = Math.imul(31, hash) + activityId.charCodeAt(i) | 0;
+  }
+  // Map to ±3 points
+  return ((Math.abs(hash) % 601) / 100) - 3;
 }
 
 /** Keyword-based direct boost: +weight when user mentions an activity by name/category. */
@@ -494,7 +504,7 @@ export function rankActivities(
       calcKeywordBoost(activity, lowerPrompt) +
       calcLocationAreaScore(activity, locOverride) +
       calcWarningPenalty(activity) +
-      jitter();
+      deterministicJitter(activity.id);
 
     // Build human-readable reason
     const reasons: string[] = [];
