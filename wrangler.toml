@@ -3,10 +3,7 @@ compatibility_date = "2024-09-23"
 compatibility_flags = ["nodejs_compat"]
 pages_build_output_dir = "dist"
 
-# KV namespace for group session storage.
-# After creating the KV namespace in the Cloudflare dashboard, set the binding
-# name to VIBEPLAN_KV in CF Pages → Settings → Functions → KV namespace bindings.
-# For local dev with `wrangler pages dev`, fill in the id below:
-# [[kv_namespaces]]
-# binding = "VIBEPLAN_KV"
-# id = "YOUR_KV_NAMESPACE_ID_HERE"
+# KV namespace for group session storage (vibeplan-groups namespace)
+[[kv_namespaces]]
+binding = "VIBEPLAN_KV"
+id = "0840c43269d74c90b537dec4f43bc513"
